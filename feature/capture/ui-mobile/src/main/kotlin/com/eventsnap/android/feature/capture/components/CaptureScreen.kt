@@ -113,8 +113,16 @@ fun CaptureScreen(
     )
 }
 
-private fun buildVoiceIntent() =
-    android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+private fun buildVoiceIntent(): android.content.Intent {
+    // Follow the device language so speech is recognized in the user's own language
+    // (e.g. Romanian). Without EXTRA_LANGUAGE the recognizer falls back to English.
+    val locale = java.util.Locale.getDefault()
+    val languageTag = locale.toLanguageTag()
+    return android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, languageTag)
+        putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
         putExtra(RecognizerIntent.EXTRA_PROMPT, "Describe your event")
     }
+}
