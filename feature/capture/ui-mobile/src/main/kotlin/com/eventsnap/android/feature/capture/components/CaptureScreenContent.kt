@@ -125,6 +125,14 @@ fun CaptureScreenContent(
                 enabled = !state.isProcessing,
                 onClick = onPickFromFiles,
             )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            ActionRow(
+                icon = Icons.Filled.Mic,
+                title = "Speak an event",
+                subtitle = "Dictate with your voice",
+                enabled = !state.isProcessing,
+                onClick = onStartVoice,
+            )
 
             if (state.isProcessing) {
                 Spacer(Modifier.height(Spacing.lg))

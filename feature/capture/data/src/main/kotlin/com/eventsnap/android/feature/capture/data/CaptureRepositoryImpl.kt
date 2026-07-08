@@ -15,6 +15,7 @@ import com.eventsnap.android.core.model.CaptureInput
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.flow.first
 import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -58,7 +59,7 @@ internal class CaptureRepositoryImpl(
             )
 
         val response = groqApi.chatCompletions(authorization = "Bearer $apiKey", request = request)
-        val json =
+        val rawJson =
             response.choices
                 .firstOrNull()
                 ?.message
@@ -66,36 +67,93 @@ internal class CaptureRepositoryImpl(
                 ?: error("Groq returned an empty response.")
 
         val envelope =
-            moshi.adapter(GroqEventEnvelope::class.java).fromJson(json)
+            moshi.adapter(GroqEventEnvelope::class.java).fromJson(stripJsonFences(rawJson))
                 ?: error("Could not parse the AI response.")
 
         return envelope.events.mapNotNull { dto ->
             val title = dto.title?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val start = dto.start?.let(::parseLocal) ?: return@mapNotNull null
-            val startMillis = start.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val endMillis =
-                dto.end
-                    ?.let(::parseLocal)
-                    ?.atZone(ZoneId.systemDefault())
-                    ?.toInstant()
-                    ?.toEpochMilli()
-                    ?: (startMillis + Duration.ofHours(1).toMillis())
-            CalendarEvent(
-                title = title,
-                startEpochMillis = startMillis,
-                endEpochMillis = endMillis,
-                allDay = dto.allDay ?: false,
-                location = dto.location?.takeIf { it.isNotBlank() },
-                description = dto.description?.takeIf { it.isNotBlank() },
-                reminderMinutesBefore = dto.reminderMinutesBefore,
+            val start = dto.start?.let(::parseFlexible) ?: return@mapNotNull null
+            toCalendarEvent(
+                title,
+                start,
+                dto.end?.let(::parseFlexible),
+                dto.allDay,
+                dto.location,
+                dto.description,
+                dto.reminderMinutesBefore,
             )
         }
     }
 
-    private fun parseLocal(value: String): LocalDateTime? =
-        runCatching {
-            LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-        }.getOrElse {
-            runCatching { LocalDateTime.parse(value) }.getOrNull()
-        }
+    private fun toCalendarEvent(
+        title: String,
+        start: ParsedTime,
+        end: ParsedTime?,
+        allDayHint: Boolean?,
+        location: String?,
+        description: String?,
+        reminderMinutesBefore: Int?,
+    ): CalendarEvent {
+        // A date-only value (no clock time) means an all-day event, even if the model didn't set the flag.
+        val allDay = allDayHint == true || start.dateOnly
+        val zone = ZoneId.systemDefault()
+        val startMillis =
+            start.dateTime
+                .atZone(zone)
+                .toInstant()
+                .toEpochMilli()
+        val endMillis =
+            when {
+                end != null ->
+                    end.dateTime
+                        .atZone(zone)
+                        .toInstant()
+                        .toEpochMilli()
+                allDay ->
+                    start.dateTime
+                        .plusDays(1)
+                        .atZone(zone)
+                        .toInstant()
+                        .toEpochMilli()
+                else -> startMillis + Duration.ofHours(1).toMillis()
+            }
+        return CalendarEvent(
+            title = title,
+            startEpochMillis = startMillis,
+            endEpochMillis = endMillis,
+            allDay = allDay,
+            location = location?.takeIf { it.isNotBlank() },
+            description = description?.takeIf { it.isNotBlank() },
+            reminderMinutesBefore = reminderMinutesBefore,
+        )
+    }
+
+    /** A parsed instant plus whether the source had only a date (→ all-day). */
+    private data class ParsedTime(
+        val dateTime: LocalDateTime,
+        val dateOnly: Boolean,
+    )
+
+    private fun parseFlexible(value: String): ParsedTime? {
+        val trimmed = value.trim()
+        // Try, in order: ISO local datetime, lenient datetime, then date-only (→ all-day).
+        val asDateTime =
+            runCatching { LocalDateTime.parse(trimmed, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
+                ?: runCatching { LocalDateTime.parse(trimmed) }.getOrNull()
+        if (asDateTime != null) return ParsedTime(asDateTime, dateOnly = false)
+
+        val asDate = runCatching { LocalDate.parse(trimmed, DateTimeFormatter.ISO_LOCAL_DATE) }.getOrNull()
+        return asDate?.let { ParsedTime(it.atStartOfDay(), dateOnly = true) }
+    }
+
+    /** Groq sometimes wraps JSON in ```json … ``` fences; strip them before parsing. */
+    private fun stripJsonFences(raw: String): String {
+        val trimmed = raw.trim()
+        if (!trimmed.startsWith("```")) return trimmed
+        return trimmed
+            .removePrefix("```json")
+            .removePrefix("```")
+            .removeSuffix("```")
+            .trim()
+    }
 }

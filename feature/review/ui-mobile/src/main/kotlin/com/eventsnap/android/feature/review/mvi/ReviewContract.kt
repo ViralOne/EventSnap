@@ -17,6 +17,8 @@ data class ReviewState(
 ) : ViewState
 
 sealed interface ReviewAction : ViewAction {
+    data object Load : ReviewAction
+
     data class TitleChanged(
         val index: Int,
         val value: String,

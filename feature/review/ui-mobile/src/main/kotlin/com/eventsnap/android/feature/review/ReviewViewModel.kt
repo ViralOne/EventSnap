@@ -2,6 +2,7 @@ package com.eventsnap.android.feature.review
 
 import androidx.lifecycle.viewModelScope
 import com.eventsnap.android.core.BaseViewModel
+import com.eventsnap.android.core.model.CalendarEvent
 import com.eventsnap.android.feature.review.data.ReviewRepository
 import com.eventsnap.android.feature.review.mvi.ReviewAction
 import com.eventsnap.android.feature.review.mvi.ReviewEffect
@@ -12,13 +13,29 @@ import kotlinx.coroutines.launch
 class ReviewViewModel(
     private val repository: ReviewRepository,
 ) : BaseViewModel<ReviewState, ReviewAction, ReviewEffect>(ReviewState()) {
-    init {
-        loadPending()
+    override suspend fun onAction(action: ReviewAction) {
+        when (action) {
+            is ReviewAction.Load -> load()
+            is ReviewAction.TitleChanged -> mutateEvent(action.index) { it.copy(title = action.value) }
+            is ReviewAction.LocationChanged -> mutateEvent(action.index) { it.copy(location = action.value) }
+            is ReviewAction.RemoveEvent ->
+                setState {
+                    copy(events = events.filterIndexed { i, _ -> i != action.index }.toImmutableList())
+                }
+            is ReviewAction.CalendarSelected -> setState { copy(selectedCalendarId = action.calendarId) }
+            is ReviewAction.ErrorDismissed -> setState { copy(error = null) }
+            is ReviewAction.Confirm -> confirm()
+        }
     }
 
-    private fun loadPending() {
+    /**
+     * Reloads pending events + calendars from scratch. Dispatched on every screen entry so a
+     * repeat visit never shows the previous batch (the ViewModel may be reused across visits).
+     */
+    private fun load() {
         val pending = repository.pendingEvents()
-        setState { copy(events = pending.toImmutableList()) }
+        // Full reset — clears any events/selection/error left over from a prior visit.
+        setState { ReviewState(events = pending.toImmutableList()) }
         viewModelScope.launch {
             runCatching {
                 val calendars = repository.writableCalendars()
@@ -35,23 +52,9 @@ class ReviewViewModel(
         }
     }
 
-    override suspend fun onAction(action: ReviewAction) {
-        when (action) {
-            is ReviewAction.TitleChanged -> mutateEvent(action.index) { it.copy(title = action.value) }
-            is ReviewAction.LocationChanged -> mutateEvent(action.index) { it.copy(location = action.value) }
-            is ReviewAction.RemoveEvent ->
-                setState {
-                    copy(events = events.filterIndexed { i, _ -> i != action.index }.toImmutableList())
-                }
-            is ReviewAction.CalendarSelected -> setState { copy(selectedCalendarId = action.calendarId) }
-            is ReviewAction.ErrorDismissed -> setState { copy(error = null) }
-            is ReviewAction.Confirm -> confirm()
-        }
-    }
-
     private fun mutateEvent(
         index: Int,
-        transform: (com.eventsnap.android.core.model.CalendarEvent) -> com.eventsnap.android.core.model.CalendarEvent,
+        transform: (CalendarEvent) -> CalendarEvent,
     ) {
         setState {
             copy(events = events.mapIndexed { i, e -> if (i == index) transform(e) else e }.toImmutableList())

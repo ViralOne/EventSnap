@@ -35,8 +35,15 @@ object EventPromptBuilder {
 
             Rules:
             - Return one entry per distinct event; a schedule/poster may contain several.
+              (e.g. "free 28–31 July and her birthday is the 30th" = TWO events.)
+            - The input may be in ANY language (Romanian, English, etc.). Understand it and
+              always output the JSON field values as described here.
+            - For a multi-day span or a day without a clock time (birthdays, holidays, "free
+              28-31"), set "allDay": true and use date-only values "YYYY-MM-DD" for start/end.
+              An all-day range is inclusive: "free 28-31 July" → start 2026-07-28, end 2026-08-01.
+            - For events with a specific time, use "YYYY-MM-DDTHH:mm:ss" and "allDay": false.
             - If a field is unknown, use null (or omit reminderMinutesBefore).
-            - Do not wrap the JSON in markdown fences or add commentary.
+            - Output ONLY the raw JSON object. No markdown code fences, no commentary.
             """.trimIndent()
     }
 

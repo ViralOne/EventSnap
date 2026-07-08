@@ -2,12 +2,14 @@ package com.eventsnap.android.feature.review.components
 
 import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eventsnap.android.core.ui.mobile.HandleEffects
 import com.eventsnap.android.feature.review.ReviewViewModel
+import com.eventsnap.android.feature.review.mvi.ReviewAction
 import com.eventsnap.android.feature.review.mvi.ReviewEffect
 import org.koin.androidx.compose.koinViewModel
 
@@ -19,6 +21,10 @@ fun ReviewScreen(
     val viewModel: ReviewViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    // Reload fresh on every entry — the ViewModel can be reused across visits, so this clears
+    // any events/selection left from a previous review and re-reads the newly captured batch.
+    LaunchedEffect(Unit) { viewModel.setAction(ReviewAction.Load) }
 
     HandleEffects(viewModel.effects) { effect ->
         when (effect) {

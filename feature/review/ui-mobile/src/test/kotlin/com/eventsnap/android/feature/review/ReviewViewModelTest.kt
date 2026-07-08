@@ -31,6 +31,7 @@ class ReviewViewModelTest {
             whenever(repo.defaultCalendarId()).thenReturn(7)
 
             val vm = ReviewViewModel(repo)
+            vm.setAction(ReviewAction.Load)
             vm.effects.test {
                 vm.setAction(ReviewAction.Confirm)
                 assertThat(awaitItem()).isEqualTo(ReviewEffect.ShowSaved(1))
@@ -39,7 +40,7 @@ class ReviewViewModelTest {
         }
 
     @Test
-    fun `pending events are loaded into state`() =
+    fun `Load reads pending events into state`() =
         runTest {
             val repo = mock<ReviewRepository>()
             whenever(repo.pendingEvents()).thenReturn(listOf(event))
@@ -47,8 +48,27 @@ class ReviewViewModelTest {
             whenever(repo.defaultCalendarId()).thenReturn(null)
 
             val vm = ReviewViewModel(repo)
+            vm.setAction(ReviewAction.Load)
             vm.state.test {
                 assertThat(awaitItem().events).containsExactly(event)
+            }
+        }
+
+    @Test
+    fun `Load a second time replaces the previous batch`() =
+        runTest {
+            val repo = mock<ReviewRepository>()
+            whenever(repo.writableCalendars()).thenReturn(emptyList())
+            whenever(repo.defaultCalendarId()).thenReturn(null)
+
+            val second = CalendarEvent(title = "Lunch", startEpochMillis = 5_000L, endEpochMillis = 6_000L)
+            whenever(repo.pendingEvents()).thenReturn(listOf(event), emptyList(), listOf(second))
+
+            val vm = ReviewViewModel(repo)
+            vm.setAction(ReviewAction.Load) // first visit: [event]
+            vm.setAction(ReviewAction.Load) // second visit: holder empty → must clear
+            vm.state.test {
+                assertThat(awaitItem().events).isEmpty()
             }
         }
 }
