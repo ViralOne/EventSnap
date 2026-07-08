@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base theme; Compose drives the real theming via EventsnapTheme. This keeps the
+         manifest's android:theme reference valid and gives a sane splash background. -->
+    <style name="Theme.Eventsnap" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

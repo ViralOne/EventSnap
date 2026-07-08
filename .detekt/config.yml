@@ -1,0 +1,39 @@
+build:
+  maxIssues: 0
+
+style:
+  UnusedPrivateMember:
+    active: true
+    allowedNames: '(_|ignored|expected|serialVersionUID)'
+    # Preview functions and Composable helpers are tooling-only — detekt can't see the
+    # @Preview entry points so it'd flag every one of them as unused.
+    ignoreAnnotated: ['Preview', 'EventsnapPreviews', 'Composable']
+  UnusedPrivateProperty:
+    active: true
+    # Repository / service / store fields are injected at scaffold time and used later
+    # by the implementer. Pre-allow the common names so detekt doesn't fail the build
+    # on a fresh scaffold.
+    allowedNames: '(_|ignored|expected|serialVersionUID|repository|service|store|client|dispatcher|context)'
+  MagicNumber:
+    active: false # Compose/Material uses sp/dp magic numbers; whole-file suppress isn't useful
+  MaxLineLength:
+    active: true
+    maxLineLength: 140
+
+naming:
+  MatchingDeclarationName:
+    active: true
+  FunctionNaming:
+    active: true
+    # @Composable functions are PascalCase by convention — exclude them from camelCase naming.
+    ignoreAnnotated: ['Composable']
+
+complexity:
+  LongMethod:
+    active: false # ScreenContent composables can be long without being complex
+  LongParameterList:
+    active: true
+    functionThreshold: 8 # Composable parameter lists run long; raise from the default 6
+    constructorThreshold: 8
+  TooManyFunctions:
+    active: false

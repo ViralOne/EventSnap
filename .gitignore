@@ -1,0 +1,57 @@
+# Gradle
+.gradle/
+build/
+**/build/
+out/
+
+# Gradle wrapper — DO commit gradle-wrapper.jar and .properties; ignore only backups
+gradle/wrapper/gradle-wrapper.jar.bak
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+captures/
+.navigation/
+
+# Kotlin
+.kotlin/
+
+# Android build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+release/
+
+# Local config (per-developer, never commit)
+local.properties
+
+# Logs / OS junk
+*.log
+.DS_Store
+Thumbs.db
+
+# Lint cache
+.lint/cache/
+
+# Test coverage
+*.exec
+
+# Crashlytics
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+
+# Firebase — google-services.json is normally committed; leave the line below commented.
+# Uncomment only if your project policy keeps it out of source control.
+# app-mobile/google-services.json
+# app-tv/google-services.json
+
+# Generated keystores (debug keystores are auto-generated; release keystores must never be in repo)
+*.jks
+*.keystore

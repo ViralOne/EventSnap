@@ -1,0 +1,26 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+indent_style = space
+indent_size = 4
+max_line_length = 140
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+
+# Compose @Composable functions are PascalCase; ktlint's standard rule expects camelCase.
+ktlint_standard_function-naming = disabled
+ktlint_function_naming_ignore_when_annotated_with = Composable, Preview, EventsnapPreviews
+
+# BaseViewModel uses `_actions` / `_effects` as private buffers with no public mirror
+# (actions are dispatched via setAction(), effects exposed as a Flow only).
+ktlint_standard_backing-property-naming = disabled
+
+[*.{xml,yml,yaml,json,md}]
+indent_style = space
+indent_size = 2

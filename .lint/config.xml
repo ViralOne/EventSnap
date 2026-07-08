@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Placeholder icons ship with the scaffold; don't fail the build on them. -->
+    <issue id="IconMissingDensityFolder" severity="ignore" />
+    <issue id="MissingApplicationIcon" severity="ignore" />
+    <!-- Newer AndroidX/Compose versions than the pinned baseline are expected during dev. -->
+    <issue id="GradleDependency" severity="warning" />
+    <issue id="NewerVersionAvailable" severity="warning" />
+    <issue id="AndroidGradlePluginVersion" severity="warning" />
+</lint>
