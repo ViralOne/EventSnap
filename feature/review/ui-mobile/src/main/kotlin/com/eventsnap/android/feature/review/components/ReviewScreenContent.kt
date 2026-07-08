@@ -1,6 +1,7 @@
 package com.eventsnap.android.feature.review.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,15 +13,30 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -34,7 +50,18 @@ import com.eventsnap.android.feature.review.mvi.ReviewAction
 import com.eventsnap.android.feature.review.mvi.ReviewState
 import kotlinx.collections.immutable.persistentListOf
 import java.text.DateFormat
+import java.util.Calendar
 import java.util.Date
+
+private val REMINDER_CHOICES: List<Pair<String, Int?>> =
+    listOf(
+        "No reminder" to null,
+        "At time" to 0,
+        "10 min before" to 10,
+        "30 min before" to 30,
+        "1 hour before" to 60,
+        "1 day before" to 1440,
+    )
 
 @Composable
 fun ReviewScreenContent(
@@ -50,11 +77,7 @@ fun ReviewScreenContent(
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             itemsIndexed(state.events, key = { index, _ -> index }) { index, event ->
-                EventCard(
-                    index = index,
-                    event = event,
-                    onAction = onAction,
-                )
+                EventCard(index = index, event = event, onAction = onAction)
             }
 
             if (state.calendars.isNotEmpty()) {
@@ -114,16 +137,161 @@ private fun EventCard(
                     Icon(Icons.Filled.Delete, contentDescription = "Remove event")
                 }
             }
-            Text(
-                text = formatRange(event),
-                style = MaterialTheme.typography.bodyMedium,
+
+            // All-day switch
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("All-day", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = event.allDay,
+                    onCheckedChange = { onAction(ReviewAction.AllDayToggled(index, it)) },
+                    modifier = Modifier.testTag("allday_switch_$index"),
+                )
+            }
+
+            // Start / end date+time editors
+            DateTimeRow(
+                label = "Starts",
+                epochMillis = event.startEpochMillis,
+                showTime = !event.allDay,
+                onChanged = { onAction(ReviewAction.StartChanged(index, it)) },
             )
+            DateTimeRow(
+                label = "Ends",
+                epochMillis = event.endEpochMillis,
+                showTime = !event.allDay,
+                onChanged = { onAction(ReviewAction.EndChanged(index, it)) },
+            )
+
             OutlinedTextField(
                 value = event.location.orEmpty(),
                 onValueChange = { onAction(ReviewAction.LocationChanged(index, it)) },
                 label = { Text("Location") },
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            ReminderDropdown(
+                selected = event.reminderMinutesBefore,
+                onSelected = { onAction(ReviewAction.ReminderChanged(index, it)) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun DateTimeRow(
+    label: String,
+    epochMillis: Long,
+    showTime: Boolean,
+    onChanged: (Long) -> Unit,
+) {
+    var showDate by remember { mutableStateOf(false) }
+    var showTimeDialog by remember { mutableStateOf(false) }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        AssistChip(onClick = { showDate = true }, label = { Text(formatDate(epochMillis)) })
+        if (showTime) {
+            AssistChip(
+                onClick = { showTimeDialog = true },
+                label = { Text(formatTime(epochMillis)) },
+                modifier = Modifier.padding(start = Spacing.xs),
+            )
+        }
+    }
+
+    if (showDate) {
+        DatePickerModal(
+            initialMillis = epochMillis,
+            onDismiss = { showDate = false },
+            onConfirm = { pickedDateMillis ->
+                showDate = false
+                onChanged(mergeDate(epochMillis, pickedDateMillis))
+            },
+        )
+    }
+    if (showTimeDialog) {
+        TimePickerModal(
+            initialMillis = epochMillis,
+            onDismiss = { showTimeDialog = false },
+            onConfirm = { hour, minute ->
+                showTimeDialog = false
+                onChanged(mergeTime(epochMillis, hour, minute))
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DatePickerModal(
+    initialMillis: Long,
+    onDismiss: () -> Unit,
+    onConfirm: (Long) -> Unit,
+) {
+    val pickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { pickerState.selectedDateMillis?.let(onConfirm) ?: onDismiss() }) {
+                Text("OK")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    ) {
+        DatePicker(state = pickerState)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimePickerModal(
+    initialMillis: Long,
+    onDismiss: () -> Unit,
+    onConfirm: (Int, Int) -> Unit,
+) {
+    val cal = Calendar.getInstance().apply { timeInMillis = initialMillis }
+    val timeState =
+        rememberTimePickerState(
+            initialHour = cal.get(Calendar.HOUR_OF_DAY),
+            initialMinute = cal.get(Calendar.MINUTE),
+            is24Hour = true,
+        )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onConfirm(timeState.hour, timeState.minute) }) { Text("OK") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().padding(Spacing.md), contentAlignment = Alignment.Center) {
+            TimePicker(state = timeState)
+        }
+    }
+}
+
+@Composable
+private fun ReminderDropdown(
+    selected: Int?,
+    onSelected: (Int?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val label = REMINDER_CHOICES.firstOrNull { it.second == selected }?.first ?: "No reminder"
+    Box {
+        AssistChip(
+            onClick = { expanded = true },
+            label = { Text("Reminder: $label") },
+            modifier = Modifier.testTag("reminder_chip"),
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            REMINDER_CHOICES.forEach { (text, minutes) ->
+                DropdownMenuItem(
+                    text = { Text(text) },
+                    onClick = {
+                        expanded = false
+                        onSelected(minutes)
+                    },
+                )
+            }
         }
     }
 }
@@ -150,9 +318,36 @@ private fun CalendarOption(
     }
 }
 
-private fun formatRange(event: CalendarEvent): String {
-    val fmt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-    return "${fmt.format(Date(event.startEpochMillis))} – ${fmt.format(Date(event.endEpochMillis))}"
+private fun formatDate(millis: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(millis))
+
+private fun formatTime(millis: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(millis))
+
+/** Replaces the date part of [baseMillis] with the date from [dateMillis], keeping the clock time. */
+private fun mergeDate(
+    baseMillis: Long,
+    dateMillis: Long,
+): Long {
+    val base = Calendar.getInstance().apply { timeInMillis = baseMillis }
+    val picked = Calendar.getInstance().apply { timeInMillis = dateMillis }
+    picked.set(Calendar.HOUR_OF_DAY, base.get(Calendar.HOUR_OF_DAY))
+    picked.set(Calendar.MINUTE, base.get(Calendar.MINUTE))
+    picked.set(Calendar.SECOND, 0)
+    picked.set(Calendar.MILLISECOND, 0)
+    return picked.timeInMillis
+}
+
+/** Replaces the clock time of [baseMillis] with [hour]:[minute], keeping the date. */
+private fun mergeTime(
+    baseMillis: Long,
+    hour: Int,
+    minute: Int,
+): Long {
+    val cal = Calendar.getInstance().apply { timeInMillis = baseMillis }
+    cal.set(Calendar.HOUR_OF_DAY, hour)
+    cal.set(Calendar.MINUTE, minute)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    return cal.timeInMillis
 }
 
 @EventsnapPreviews
@@ -169,6 +364,7 @@ private fun ReviewScreenContentPreview() {
                                 startEpochMillis = 1_800_000_000_000L,
                                 endEpochMillis = 1_800_003_600_000L,
                                 location = "Osteria",
+                                reminderMinutesBefore = 60,
                             ),
                         ),
                     calendars =

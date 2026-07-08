@@ -20,6 +20,8 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.eventsnap.android.feature.capture.CaptureRoute
 import com.eventsnap.android.feature.capture.captureEntry
+import com.eventsnap.android.feature.history.HistoryRoute
+import com.eventsnap.android.feature.history.historyEntry
 import com.eventsnap.android.feature.review.ReviewRoute
 import com.eventsnap.android.feature.review.reviewEntry
 import com.eventsnap.android.feature.settings.SettingsRoute
@@ -46,7 +48,10 @@ fun EventsnapNavHost(
         if (needed.isNotEmpty()) permissionLauncher.launch(needed.toTypedArray())
     }
 
-    val currentTabRoute = backStack.lastOrNull()?.takeIf { it == CaptureRoute || it == SettingsRoute }
+    val currentTabRoute =
+        backStack.lastOrNull()?.takeIf {
+            it == CaptureRoute || it == HistoryRoute || it == SettingsRoute
+        }
 
     Scaffold(
         modifier = modifier,
@@ -74,6 +79,7 @@ fun EventsnapNavHost(
                     reviewEntry(
                         onDone = { if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) },
                     )
+                    historyEntry()
                     settingsEntry()
                 },
         )

@@ -33,6 +33,7 @@ dependencies {
     implementation(project(":feature:capture:ui-mobile"))
     implementation(project(":feature:review:ui-mobile"))
     implementation(project(":feature:settings:ui-mobile"))
+    implementation(project(":feature:history:ui-mobile"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

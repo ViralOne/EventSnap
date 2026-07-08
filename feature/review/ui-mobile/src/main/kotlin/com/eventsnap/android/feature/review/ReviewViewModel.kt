@@ -18,6 +18,18 @@ class ReviewViewModel(
             is ReviewAction.Load -> load()
             is ReviewAction.TitleChanged -> mutateEvent(action.index) { it.copy(title = action.value) }
             is ReviewAction.LocationChanged -> mutateEvent(action.index) { it.copy(location = action.value) }
+            is ReviewAction.StartChanged ->
+                mutateEvent(action.index) { event ->
+                    // Keep the duration stable when the start moves; never let end precede start.
+                    val duration = (event.endEpochMillis - event.startEpochMillis).coerceAtLeast(0)
+                    event.copy(startEpochMillis = action.epochMillis, endEpochMillis = action.epochMillis + duration)
+                }
+            is ReviewAction.EndChanged ->
+                mutateEvent(action.index) { event ->
+                    event.copy(endEpochMillis = action.epochMillis.coerceAtLeast(event.startEpochMillis))
+                }
+            is ReviewAction.AllDayToggled -> mutateEvent(action.index) { it.copy(allDay = action.allDay) }
+            is ReviewAction.ReminderChanged -> mutateEvent(action.index) { it.copy(reminderMinutesBefore = action.minutesBefore) }
             is ReviewAction.RemoveEvent ->
                 setState {
                     copy(events = events.filterIndexed { i, _ -> i != action.index }.toImmutableList())

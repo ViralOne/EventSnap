@@ -29,6 +29,28 @@ sealed interface ReviewAction : ViewAction {
         val value: String,
     ) : ReviewAction
 
+    /** New start instant (epoch millis) picked from the date/time pickers. */
+    data class StartChanged(
+        val index: Int,
+        val epochMillis: Long,
+    ) : ReviewAction
+
+    /** New end instant (epoch millis). */
+    data class EndChanged(
+        val index: Int,
+        val epochMillis: Long,
+    ) : ReviewAction
+
+    data class AllDayToggled(
+        val index: Int,
+        val allDay: Boolean,
+    ) : ReviewAction
+
+    data class ReminderChanged(
+        val index: Int,
+        val minutesBefore: Int?,
+    ) : ReviewAction
+
     data class RemoveEvent(
         val index: Int,
     ) : ReviewAction
