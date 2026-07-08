@@ -25,6 +25,12 @@ data class GroqRequest(
     val temperature: Double = 0.2,
     @Suppress("ConstructorParameterNaming")
     val response_format: GroqResponseFormat? = GroqResponseFormat(),
+    // gpt-oss models spend "reasoning" tokens before the answer; without a generous cap they can
+    // run out mid-JSON (verified: gpt-oss-20b failed at 800). "low" effort keeps latency down.
+    @Suppress("ConstructorParameterNaming")
+    val max_completion_tokens: Int = 2048,
+    @Suppress("ConstructorParameterNaming")
+    val reasoning_effort: String? = null,
 )
 
 @JsonClass(generateAdapter = true)

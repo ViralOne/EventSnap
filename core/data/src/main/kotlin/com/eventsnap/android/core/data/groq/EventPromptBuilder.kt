@@ -12,19 +12,30 @@ import java.time.format.DateTimeFormatter
 object EventPromptBuilder {
     fun systemPrompt(now: ZonedDateTime = ZonedDateTime.now()): String {
         val nowIso = now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        val today = now.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val weekday =
+            now.dayOfWeek.name
+                .lowercase()
+                .replaceFirstChar { it.uppercase() }
         val zone: ZoneId = now.zone
         return """
-            You extract calendar events from the user's text or image.
-            The current local date-time is $nowIso (timezone: $zone).
-            Resolve all relative dates/times against this reference.
+            You turn a person's quick, messy note into calendar events. People type fast: typos,
+            abbreviations, no punctuation, lowercase, mixed languages. Read the INTENT, not the
+            literal words, and be helpful — fill obvious gaps with sensible defaults, but never
+            invent details that aren't implied.
 
-            Respond with ONLY a JSON object of this exact shape:
+            Reference: right now it is $nowIso — $weekday, $today (timezone: $zone).
+            Resolve every relative date/time against this. Pick the NEAREST FUTURE occurrence
+            (if "Monday 9am" already passed this week, use next Monday). Never output a date in
+            the past unless the user clearly states a past date.
+
+            Respond with ONLY a JSON object of this exact shape (no markdown fences, no prose):
             {
               "events": [
                 {
-                  "title": "string",
-                  "start": "ISO-8601 local datetime, e.g. 2026-07-10T20:00:00",
-                  "end": "ISO-8601 local datetime (default 1h after start if unknown)",
+                  "title": "short human title",
+                  "start": "2026-07-10T20:00:00",
+                  "end": "2026-07-10T21:00:00",
                   "allDay": false,
                   "location": "string or null",
                   "description": "string or null",
@@ -33,20 +44,42 @@ object EventPromptBuilder {
               ]
             }
 
-            Rules:
-            - Return one entry per distinct event; a schedule/poster may contain several.
-              (e.g. "free 28–31 July and her birthday is the 30th" = TWO events.)
-            - The input may be in ANY language (Romanian, English, etc.). Understand it and
-              always output the JSON field values as described here.
-            - For a multi-day span or a day without a clock time (birthdays, holidays, "free
-              28-31"), set "allDay": true and use date-only values "YYYY-MM-DD" for start/end.
-              An all-day range is inclusive: "free 28-31 July" → start 2026-07-28, end 2026-08-01.
-            - For events with a specific time, use "YYYY-MM-DDTHH:mm:ss" and "allDay": false.
-            - If a field is unknown, use null (or omit reminderMinutesBefore).
-            - Output ONLY the raw JSON object. No markdown code fences, no commentary.
+            LANGUAGE:
+            - The note may be in any language (Romanian, English, …). Keep "title", "location"
+              and "description" IN THE SAME LANGUAGE the user wrote. Do NOT translate them.
+            - Clean the title: fix typos, expand abbreviations, capitalize sensibly
+              ("dinnr w sara" → "Dinner with Sara"; "sedinta cu Ana" → "Ședință cu Ana").
+
+            MULTIPLE EVENTS:
+            - Return one entry per distinct event. One note can hold several
+              ("free 28-31 July and her birthday is the 30th" = TWO events).
+
+            DATES & TIMES:
+            - Timed event → "start"/"end" as "YYYY-MM-DDTHH:mm:ss", "allDay": false.
+            - All-day or multi-day (birthdays, holidays, "free 28-31", a day with no clock time)
+              → date-only "YYYY-MM-DD" and "allDay": true. Use REAL calendar dates only.
+              Set start = first day and end = LAST day (both inclusive, as written):
+              "free 28-31 July" → start 2026-07-28, end 2026-07-31; a single day → start = end.
+              Do NOT add a day yourself and never output an impossible date like 2026-07-32.
+            - Vague times: morning→09:00, noon→12:00, afternoon→15:00, evening→19:00, night→21:00.
+            - Duration: if only a start time is given, default end = start + 1 hour. If a range is
+              given ("9 to 5", "3-4pm") use it. Meetings/calls default 30–60 min, meals ~1h.
+
+            OTHER FIELDS:
+            - location: only if a place is mentioned; else null. Don't guess an address.
+            - reminderMinutesBefore: 30 unless the user asks otherwise ("remind me 1h before"→60,
+              "the day before"→1440). Use null only if they say no reminder.
+            - Recurrence ("every Monday", "daily") is NOT supported: create the single nearest
+              upcoming occurrence and note the recurrence in "description".
+
+            NO EVENT:
+            - If the note has no schedulable event (chit-chat, "ok thanks", a random sentence),
+              return {"events": []}. Never fabricate an event just to return something.
             """.trimIndent()
     }
 
-    const val TEXT_INSTRUCTION: String = "Extract the event(s) from this description:"
-    const val IMAGE_INSTRUCTION: String = "Extract the event(s) shown in this image (read any visible text)."
+    const val TEXT_INSTRUCTION: String = "Turn this note into calendar event(s):"
+    const val IMAGE_INSTRUCTION: String =
+        "Read this image (poster, ticket, screenshot, schedule) and extract the event(s). " +
+            "Keep any text in its original language."
 }

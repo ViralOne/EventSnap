@@ -30,27 +30,35 @@ internal class CaptureRepositoryImpl(
         require(!apiKey.isNullOrBlank()) { "No Groq API key set. Add one in Settings." }
 
         val systemPrompt = EventPromptBuilder.systemPrompt()
-        val (model, userParts) =
+        // reasoningEffort is set only for the text (gpt-oss) arm; the vision model ignores it.
+        val (model, reasoningEffort, userParts) =
             when (input) {
                 is CaptureInput.Text ->
-                    GroqModelCatalog.TEXT_MODEL to
+                    Triple(
+                        GroqModelCatalog.TEXT_MODEL,
+                        GroqModelCatalog.TEXT_REASONING_EFFORT,
                         listOf(
                             GroqContentPart(type = "text", text = "${EventPromptBuilder.TEXT_INSTRUCTION}\n\n${input.description}"),
-                        )
+                        ),
+                    )
                 is CaptureInput.Image -> {
                     val base64 = Base64.encodeToString(input.bytes, Base64.NO_WRAP)
                     val dataUri = "data:${input.mimeType};base64,$base64"
-                    GroqModelCatalog.VISION_MODEL to
+                    Triple(
+                        GroqModelCatalog.VISION_MODEL,
+                        null,
                         listOf(
                             GroqContentPart(type = "text", text = EventPromptBuilder.IMAGE_INSTRUCTION),
                             GroqContentPart(type = "image_url", image_url = GroqImageUrl(url = dataUri)),
-                        )
+                        ),
+                    )
                 }
             }
 
         val request =
             GroqRequest(
                 model = model,
+                reasoning_effort = reasoningEffort,
                 messages =
                     listOf(
                         GroqMessage(role = "system", content = listOf(GroqContentPart(type = "text", text = systemPrompt))),
@@ -103,19 +111,20 @@ internal class CaptureRepositoryImpl(
                 .toInstant()
                 .toEpochMilli()
         val endMillis =
-            when {
-                end != null ->
-                    end.dateTime
-                        .atZone(zone)
-                        .toInstant()
-                        .toEpochMilli()
-                allDay ->
-                    start.dateTime
-                        .plusDays(1)
-                        .atZone(zone)
-                        .toInstant()
-                        .toEpochMilli()
-                else -> startMillis + Duration.ofHours(1).toMillis()
+            if (allDay) {
+                // The model gives the INCLUSIVE last day; CalendarProvider's DTEND is exclusive,
+                // so add one day. Single-day events (end == start/null) become a 1-day block.
+                val lastDay = (end ?: start).dateTime
+                val exclusiveEnd = maxOf(lastDay, start.dateTime).plusDays(1)
+                exclusiveEnd.atZone(zone).toInstant().toEpochMilli()
+            } else {
+                val explicitEnd =
+                    end
+                        ?.dateTime
+                        ?.atZone(zone)
+                        ?.toInstant()
+                        ?.toEpochMilli()
+                explicitEnd?.takeIf { it > startMillis } ?: (startMillis + Duration.ofHours(1).toMillis())
             }
         return CalendarEvent(
             title = title,
