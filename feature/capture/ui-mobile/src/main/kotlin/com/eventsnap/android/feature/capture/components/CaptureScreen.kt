@@ -1,20 +1,29 @@
 package com.eventsnap.android.feature.capture.components
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eventsnap.android.core.model.CaptureInput
 import com.eventsnap.android.core.ui.mobile.HandleEffects
+import com.eventsnap.android.core.ui.mobile.media.MediaReaders
 import com.eventsnap.android.feature.capture.CaptureViewModel
 import com.eventsnap.android.feature.capture.mvi.CaptureAction
 import com.eventsnap.android.feature.capture.mvi.CaptureEffect
 import org.koin.androidx.compose.koinViewModel
+import java.io.File
 
 @Composable
 fun CaptureScreen(
@@ -38,25 +47,74 @@ fun CaptureScreen(
         }
     }
 
-    val imagePicker =
+    fun submitUri(uri: Uri?) {
+        if (uri == null) return
+        val bytes = MediaReaders.readAsJpeg(context, uri) ?: return
+        viewModel.setAction(CaptureAction.SubmitImage(CaptureInput.Image(bytes = bytes, mimeType = "image/jpeg")))
+    }
+
+    // Gallery (photo picker — no storage permission needed on API 29+).
+    val galleryPicker =
         rememberLauncherForActivityResult(
             ActivityResultContracts.PickVisualMedia(),
-        ) { uri ->
-            if (uri != null) {
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
-                if (bytes != null) {
-                    viewModel.setAction(CaptureAction.SubmitImage(CaptureInput.Image(bytes = bytes, mimeType = mime)))
-                }
-            }
+        ) { uri -> submitUri(uri) }
+
+    // Files (image or PDF).
+    val filePicker =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.OpenDocument(),
+        ) { uri -> submitUri(uri) }
+
+    // Camera — writes to a temp file exposed via FileProvider, then we read it back.
+    val cameraImageUri =
+        remember {
+            val dir = File(context.cacheDir, "captures").apply { mkdirs() }
+            val file = File(dir, "capture.jpg")
+            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        }
+    val cameraLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.TakePicture(),
+        ) { success -> if (success) submitUri(cameraImageUri) }
+    val cameraPermissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted -> if (granted) cameraLauncher.launch(cameraImageUri) }
+
+    // Voice — system speech recognizer returns a transcript we drop into the description.
+    val voiceLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) { result ->
+            val spoken =
+                result.data
+                    ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                    ?.firstOrNull()
+            if (!spoken.isNullOrBlank()) viewModel.setAction(CaptureAction.DescriptionChanged(spoken))
         }
 
     CaptureScreenContent(
         modifier = modifier,
         state = state,
         onAction = viewModel::setAction,
-        onPickImage = {
-            imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        onPickFromGallery = {
+            galleryPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         },
+        onTakePhoto = {
+            val granted =
+                ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                    PackageManager.PERMISSION_GRANTED
+            if (granted) cameraLauncher.launch(cameraImageUri) else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        },
+        onPickFromFiles = {
+            filePicker.launch(arrayOf("image/*", "application/pdf"))
+        },
+        onStartVoice = { voiceLauncher.launch(buildVoiceIntent()) },
     )
 }
+
+private fun buildVoiceIntent() =
+    android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(RecognizerIntent.EXTRA_PROMPT, "Describe your event")
+    }
