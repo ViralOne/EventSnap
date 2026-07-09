@@ -16,6 +16,7 @@ internal class HistoryRepositoryImpl(
                     startEpochMillis = entity.startEpochMillis,
                     allDay = entity.allDay,
                     location = entity.location,
+                    calendarEventId = entity.calendarEventId,
                     createdAtEpochMillis = entity.createdAtEpochMillis,
                 )
             }

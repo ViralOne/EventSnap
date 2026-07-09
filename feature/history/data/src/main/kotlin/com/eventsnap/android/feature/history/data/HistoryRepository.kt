@@ -9,6 +9,8 @@ data class HistoryItem(
     val startEpochMillis: Long,
     val allDay: Boolean,
     val location: String?,
+    /** CalendarProvider event id, or -1 if this row predates event-id tracking. */
+    val calendarEventId: Long,
     val createdAtEpochMillis: Long,
 )
 

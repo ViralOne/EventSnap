@@ -66,6 +66,7 @@ val coreDataModule =
         single {
             Room
                 .databaseBuilder(androidContext(), EventSnapDatabase::class.java, "eventsnap.db")
+                .addMigrations(EventSnapDatabase.MIGRATION_1_2)
                 .build()
         }
         single { get<EventSnapDatabase>().eventHistoryDao() }

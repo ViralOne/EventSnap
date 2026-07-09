@@ -14,5 +14,7 @@ data class EventHistoryEntity(
     val description: String?,
     val reminderMinutesBefore: Int?,
     val calendarId: Long,
+    /** Id of the row created in the CalendarProvider, so history can open/edit the real event. -1 if unknown. */
+    val calendarEventId: Long = -1,
     val createdAtEpochMillis: Long,
 )

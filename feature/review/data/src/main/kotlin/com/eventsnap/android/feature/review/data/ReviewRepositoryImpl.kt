@@ -27,7 +27,7 @@ internal class ReviewRepositoryImpl(
     ) {
         val now = System.currentTimeMillis()
         events.forEach { event ->
-            calendarWriter.insertEvent(calendarId, event)
+            val calendarEventId = calendarWriter.insertEvent(calendarId, event)
             historyDao.insert(
                 EventHistoryEntity(
                     title = event.title,
@@ -38,6 +38,7 @@ internal class ReviewRepositoryImpl(
                     description = event.description,
                     reminderMinutesBefore = event.reminderMinutesBefore,
                     calendarId = calendarId,
+                    calendarEventId = calendarEventId,
                     createdAtEpochMillis = now,
                 ),
             )

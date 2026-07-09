@@ -1,13 +1,19 @@
 package com.eventsnap.android.feature.history.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +33,8 @@ import java.util.Date
 @Composable
 fun HistoryScreenContent(
     state: HistoryState,
+    onOpenEvent: (Long) -> Unit,
+    onEditEvent: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().padding(Spacing.md)) {
@@ -54,29 +62,55 @@ fun HistoryScreenContent(
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             items(state.items, key = { it.id }) { item ->
-                HistoryRow(item)
+                HistoryRow(item = item, onOpenEvent = onOpenEvent, onEditEvent = onEditEvent)
             }
         }
     }
 }
 
 @Composable
-private fun HistoryRow(item: HistoryItem) {
-    Card(modifier = Modifier.fillMaxWidth().testTag("history_row_${item.id}")) {
-        Column(modifier = Modifier.padding(Spacing.md)) {
-            Text(item.title, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = formatWhen(item),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            val location = item.location
-            if (!location.isNullOrBlank()) {
+private fun HistoryRow(
+    item: HistoryItem,
+    onOpenEvent: (Long) -> Unit,
+    onEditEvent: (Long) -> Unit,
+) {
+    val openable = item.calendarEventId > 0
+    Card(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .testTag("history_row_${item.id}")
+                .then(
+                    if (openable) Modifier.clickable { onOpenEvent(item.calendarEventId) } else Modifier,
+                ),
+    ) {
+        Row(
+            modifier = Modifier.padding(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(item.title, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = location,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = formatWhen(item),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                val location = item.location
+                if (!location.isNullOrBlank()) {
+                    Text(
+                        text = location,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (openable) {
+                IconButton(
+                    onClick = { onEditEvent(item.calendarEventId) },
+                    modifier = Modifier.testTag("history_edit_${item.id}"),
+                ) {
+                    Icon(Icons.Filled.EditCalendar, contentDescription = "Edit in calendar")
+                }
             }
         }
     }
@@ -101,10 +135,12 @@ private fun HistoryScreenContentPreview() {
                     isLoading = false,
                     items =
                         persistentListOf(
-                            HistoryItem(1, "Dinner with Ana", 1_800_000_000_000L, false, "Osteria", 1_800_000_000_000L),
-                            HistoryItem(2, "Ramona's birthday", 1_800_500_000_000L, true, null, 1_800_500_000_000L),
+                            HistoryItem(1, "Dinner with Ana", 1_800_000_000_000L, false, "Osteria", 101, 1_800_000_000_000L),
+                            HistoryItem(2, "Ramona's birthday", 1_800_500_000_000L, true, null, 102, 1_800_500_000_000L),
                         ),
                 ),
+            onOpenEvent = {},
+            onEditEvent = {},
         )
     }
 }
@@ -113,6 +149,6 @@ private fun HistoryScreenContentPreview() {
 @Composable
 private fun HistoryScreenContentEmptyPreview() {
     EventsnapTheme {
-        HistoryScreenContent(state = HistoryState(isLoading = false))
+        HistoryScreenContent(state = HistoryState(isLoading = false), onOpenEvent = {}, onEditEvent = {})
     }
 }
