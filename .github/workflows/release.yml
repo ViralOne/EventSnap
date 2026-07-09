@@ -1,0 +1,72 @@
+name: Release
+
+# Publish a GitHub Release with installable APKs when a version tag is pushed.
+#   git tag v1.0.0 && git push origin v1.0.0
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # required to create the Release and upload assets
+
+jobs:
+  release:
+    name: Build APKs & publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Debug-signed APKs are signed with the auto-generated debug keystore, so they install
+      # directly on any device (sideload). Both product flavors are built.
+      - name: Build debug APKs (qa + prod)
+        run: ./gradlew :app-mobile:assembleQaDebug :app-mobile:assembleProdDebug --no-daemon --stacktrace
+
+      - name: Rename APKs with the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p artifacts
+          cp app-mobile/build/outputs/apk/qa/debug/app-mobile-qa-debug.apk \
+            "artifacts/EventSnap-${TAG}-qa-debug.apk"
+          cp app-mobile/build/outputs/apk/prod/debug/app-mobile-prod-debug.apk \
+            "artifacts/EventSnap-${TAG}-prod-debug.apk"
+          ls -la artifacts
+
+      - name: Upload APKs as build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apks
+          path: artifacts/*.apk
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.apk
+          generate_release_notes: true
+          body: |
+            EventSnap ${{ github.ref_name }}
+
+            Debug-signed APKs — download one and open it on your Android phone to install
+            (you may need to allow "install from unknown sources").
+
+            - **qa-debug.apk** — default build, dev tools enabled.
+            - **prod-debug.apk** — prod flavor (applicationId `.prod`), dev tools off.
+
+            Add your free Groq API key in Settings after installing.
