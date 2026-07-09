@@ -32,22 +32,13 @@ fun CaptureScreen(
     modifier: Modifier = Modifier,
     sharedText: String? = null,
     sharedMediaUri: Uri? = null,
+    launchAction: String? = null,
 ) {
     val viewModel: CaptureViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    fun submitUri(uri: Uri?) {
-        if (uri == null) return // user cancelled the picker — not an error
-        val bytes = MediaReaders.readAsJpeg(context, uri)
-        if (bytes == null) {
-            viewModel.setAction(
-                CaptureAction.MediaError("That file looks empty or unreadable. Pick a valid image or PDF."),
-            )
-            return
-        }
-        viewModel.setAction(CaptureAction.SubmitImage(CaptureInput.Image(bytes = bytes, mimeType = "image/jpeg")))
-    }
+    fun submitUri(uri: Uri?) = readAndSubmit(context, uri, viewModel)
 
     LaunchedEffect(sharedText) {
         if (!sharedText.isNullOrBlank()) {
@@ -107,24 +98,73 @@ fun CaptureScreen(
             if (!spoken.isNullOrBlank()) viewModel.setAction(CaptureAction.DescriptionChanged(spoken))
         }
 
+    fun startVoice() = voiceLauncher.launch(buildVoiceIntent())
+
+    fun takePhoto() {
+        val granted =
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED
+        if (granted) cameraLauncher.launch(cameraImageUri) else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+
+    // A shortcut / widget / QS tile can ask us to jump straight into voice or camera on launch.
+    LaunchedEffect(launchAction) {
+        autoStart(launchAction, onVoice = ::startVoice, onPhoto = ::takePhoto)
+    }
+
     CaptureScreenContent(
         modifier = modifier,
         state = state,
         onAction = viewModel::setAction,
-        onPickFromGallery = {
-            galleryPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        },
-        onTakePhoto = {
-            val granted =
-                ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-                    PackageManager.PERMISSION_GRANTED
-            if (granted) cameraLauncher.launch(cameraImageUri) else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-        },
-        onPickFromFiles = {
-            filePicker.launch(arrayOf("image/*", "application/pdf"))
-        },
-        onStartVoice = { voiceLauncher.launch(buildVoiceIntent()) },
+        launchers =
+            CaptureLaunchers(
+                onPickFromGallery = {
+                    galleryPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                onTakePhoto = { takePhoto() },
+                onPickFromFiles = { filePicker.launch(arrayOf("image/*", "application/pdf")) },
+                onStartVoice = { startVoice() },
+            ),
+        // The "describe" shortcut/widget lands here to type — focus the field and open the keyboard.
+        autoFocusInput = launchAction == CaptureLaunchAction.DESCRIBE,
     )
+}
+
+/** Reads a picked/shared Uri to JPEG bytes and submits it, or reports an empty/unreadable file. */
+private fun readAndSubmit(
+    context: android.content.Context,
+    uri: Uri?,
+    viewModel: CaptureViewModel,
+) {
+    if (uri == null) return // user cancelled the picker — not an error
+    val bytes = MediaReaders.readAsJpeg(context, uri)
+    if (bytes == null) {
+        viewModel.setAction(
+            CaptureAction.MediaError("That file looks empty or unreadable. Pick a valid image or PDF."),
+        )
+        return
+    }
+    viewModel.setAction(CaptureAction.SubmitImage(CaptureInput.Image(bytes = bytes, mimeType = "image/jpeg")))
+}
+
+/** Routes a launch-action extra to the matching capture input. DESCRIBE just lands on the screen. */
+private fun autoStart(
+    action: String?,
+    onVoice: () -> Unit,
+    onPhoto: () -> Unit,
+) {
+    when (action) {
+        CaptureLaunchAction.VOICE -> onVoice()
+        CaptureLaunchAction.PHOTO -> onPhoto()
+        else -> Unit
+    }
+}
+
+/** Values for the launch-action extra used by home-screen shortcuts, the widget, and the QS tile. */
+object CaptureLaunchAction {
+    const val VOICE = "voice"
+    const val PHOTO = "photo"
+    const val DESCRIBE = "describe"
 }
 
 private fun buildVoiceIntent(): android.content.Intent {

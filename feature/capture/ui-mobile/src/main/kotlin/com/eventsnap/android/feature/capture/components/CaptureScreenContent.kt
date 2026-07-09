@@ -52,7 +52,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -69,121 +72,125 @@ import kotlinx.coroutines.delay
 fun CaptureScreenContent(
     state: CaptureState,
     onAction: (CaptureAction) -> Unit,
-    onPickFromGallery: () -> Unit,
-    onTakePhoto: () -> Unit,
-    onPickFromFiles: () -> Unit,
-    onStartVoice: () -> Unit,
+    launchers: CaptureLaunchers,
     modifier: Modifier = Modifier,
+    autoFocusInput: Boolean = false,
 ) {
-    // Pad the whole layout by the UNION (max, not sum) of the keyboard and navigation-bar insets,
-    // so the input bar docks right on the keyboard with no dark band below it.
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars)),
-    ) {
+    // Box so the AI processing state can float as a full-screen overlay ON TOP of everything,
+    // instead of being buried below the action list where it's easy to miss on tall phones.
+    Box(modifier = modifier.fillMaxSize()) {
+        // Pad by the UNION (max, not sum) of keyboard and navigation-bar insets so the input bar
+        // docks on the keyboard when open and above the nav bar when closed — never both summed
+        // (which would leave a dark band the height of the bottom nav above the keyboard).
         Column(
             modifier =
                 Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = Spacing.lg),
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars)),
         ) {
-            Spacer(Modifier.height(Spacing.lg))
-
-            EyebrowLabel()
-            Spacer(Modifier.height(Spacing.md))
-
-            Text(
-                text = "From a photo\nto your calendar.",
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.ExtraBold,
-                lineHeight = 44.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Spacer(Modifier.height(Spacing.md))
-            Text(
-                text = "Snap it, speak it, or describe it — get an event on your calendar.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            // First-run prompt: the app needs a free Groq key to read events. Shown until one is saved.
-            if (!state.hasApiKey) {
+            Column(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = Spacing.lg),
+            ) {
                 Spacer(Modifier.height(Spacing.lg))
-                ApiKeyOnboardingCard(onSetUp = { onAction(CaptureAction.OpenApiKeySetup) })
-            }
 
-            Spacer(Modifier.height(Spacing.lg))
-            HowItWorks()
-            Spacer(Modifier.height(Spacing.lg))
+                EyebrowLabel()
+                Spacer(Modifier.height(Spacing.md))
 
-            SectionLabel("GENERATE AN EVENT")
-            Spacer(Modifier.height(Spacing.sm))
-
-            ActionRow(
-                icon = Icons.Filled.Image,
-                title = "Select from gallery",
-                subtitle = "From a screenshot or a photo",
-                enabled = !state.isProcessing,
-                onClick = onPickFromGallery,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            ActionRow(
-                icon = Icons.Filled.PhotoCamera,
-                title = "Take a photo",
-                subtitle = "Frame a poster or a ticket",
-                enabled = !state.isProcessing,
-                onClick = onTakePhoto,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            ActionRow(
-                icon = Icons.Filled.AttachFile,
-                title = "Select from files",
-                subtitle = "PDF or image",
-                enabled = !state.isProcessing,
-                onClick = onPickFromFiles,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            ActionRow(
-                icon = Icons.Filled.Mic,
-                title = "Speak an event",
-                subtitle = "Dictate with your voice",
-                enabled = !state.isProcessing,
-                onClick = onStartVoice,
-            )
-
-            if (state.isProcessing) {
-                Spacer(Modifier.height(Spacing.lg))
-                ProcessingCard()
-            }
-
-            val error = state.error
-            if (error != null) {
+                Text(
+                    text = "From a photo\nto your calendar.",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    lineHeight = 44.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
                 Spacer(Modifier.height(Spacing.md))
                 Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.fillMaxWidth().testTag("capture_error"),
+                    text = "Snap it, speak it, or describe it — get an event on your calendar.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+
+                // First-run prompt: the app needs a free Groq key to read events. Shown until one is saved.
+                if (!state.hasApiKey) {
+                    Spacer(Modifier.height(Spacing.lg))
+                    ApiKeyOnboardingCard(onSetUp = { onAction(CaptureAction.OpenApiKeySetup) })
+                }
+
+                Spacer(Modifier.height(Spacing.lg))
+                HowItWorks()
+                Spacer(Modifier.height(Spacing.lg))
+
+                SectionLabel("GENERATE AN EVENT")
+                Spacer(Modifier.height(Spacing.sm))
+
+                ActionRow(
+                    icon = Icons.Filled.Image,
+                    title = "Select from gallery",
+                    subtitle = "From a screenshot or a photo",
+                    enabled = !state.isProcessing,
+                    onClick = launchers.onPickFromGallery,
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                ActionRow(
+                    icon = Icons.Filled.PhotoCamera,
+                    title = "Take a photo",
+                    subtitle = "Frame a poster or a ticket",
+                    enabled = !state.isProcessing,
+                    onClick = launchers.onTakePhoto,
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                ActionRow(
+                    icon = Icons.Filled.AttachFile,
+                    title = "Select from files",
+                    subtitle = "PDF or image",
+                    enabled = !state.isProcessing,
+                    onClick = launchers.onPickFromFiles,
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                ActionRow(
+                    icon = Icons.Filled.Mic,
+                    title = "Speak an event",
+                    subtitle = "Dictate with your voice",
+                    enabled = !state.isProcessing,
+                    onClick = launchers.onStartVoice,
+                )
+
+                val error = state.error
+                if (error != null) {
+                    Spacer(Modifier.height(Spacing.md))
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.fillMaxWidth().testTag("capture_error"),
+                    )
+                }
+
+                Spacer(Modifier.height(Spacing.lg))
             }
 
-            Spacer(Modifier.height(Spacing.lg))
+            // A fresh example prompt each time the screen appears, to hint how to phrase an event.
+            val placeholder = remember { CAPTURE_PLACEHOLDERS.random() }
+            DockedInputBar(
+                value = state.description,
+                enabled = !state.isProcessing,
+                placeholder = placeholder,
+                autoFocus = autoFocusInput,
+                onValueChange = { onAction(CaptureAction.DescriptionChanged(it)) },
+                onSubmit = { onAction(CaptureAction.SubmitText) },
+                onVoice = launchers.onStartVoice,
+            )
         }
 
-        // A fresh example prompt each time the screen appears, to hint how to phrase an event.
-        val placeholder = remember { CAPTURE_PLACEHOLDERS.random() }
-        DockedInputBar(
-            value = state.description,
-            enabled = !state.isProcessing,
-            placeholder = placeholder,
-            onValueChange = { onAction(CaptureAction.DescriptionChanged(it)) },
-            onSubmit = { onAction(CaptureAction.SubmitText) },
-            onVoice = onStartVoice,
-        )
+        // Full-screen dimmed overlay while the AI reads the input — impossible to miss.
+        if (state.isProcessing) {
+            ProcessingOverlay()
+        }
     }
 }
 
@@ -339,11 +346,12 @@ private val PROCESSING_STEPS =
     listOf("Reading your input…", "Understanding the details…", "Pulling out dates & places…", "Almost there…")
 
 /**
- * A prominent processing state shown while the AI extracts events. Cycles through a few status
- * lines so the 1–3s wait feels intentional rather than stuck.
+ * A full-screen dimmed overlay shown while the AI extracts events. Sits on top of everything and
+ * centers a card that cycles through status lines, so the wait is obvious on any screen size and
+ * the underlying UI can't be interacted with mid-extraction.
  */
 @Composable
-private fun ProcessingCard() {
+private fun ProcessingOverlay() {
     var step by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         // Advance through the steps, holding on the last one until extraction finishes.
@@ -352,24 +360,42 @@ private fun ProcessingCard() {
             step += 1
         }
     }
-    Surface(
-        tonalElevation = 2.dp,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.fillMaxWidth().testTag("capture_processing"),
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
+                // Swallow taps so nothing behind the overlay is clickable while processing.
+                .clickable(enabled = false) {}
+                .testTag("capture_processing"),
+        contentAlignment = Alignment.Center,
     ) {
-        Row(
-            modifier = Modifier.padding(Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
+        Surface(
+            tonalElevation = 6.dp,
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.padding(Spacing.xl),
         ) {
-            CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-            AnimatedContent(targetState = step, label = "processing_step") { current ->
+            Column(
+                modifier = Modifier.padding(Spacing.xl),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(44.dp), strokeWidth = 3.dp)
+                Spacer(Modifier.height(Spacing.lg))
                 Text(
-                    PROCESSING_STEPS[current],
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = Spacing.md),
+                    "Reading with AI",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
+                Spacer(Modifier.height(Spacing.xs))
+                AnimatedContent(targetState = step, label = "processing_step") { current ->
+                    Text(
+                        PROCESSING_STEPS[current],
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
@@ -380,10 +406,20 @@ private fun DockedInputBar(
     value: String,
     enabled: Boolean,
     placeholder: String,
+    autoFocus: Boolean,
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onVoice: () -> Unit,
 ) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    // When launched via the "describe" shortcut/widget, focus the field and pop the keyboard.
+    LaunchedEffect(autoFocus) {
+        if (autoFocus) {
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
+    }
     Surface(tonalElevation = 3.dp, color = MaterialTheme.colorScheme.surface) {
         Row(
             modifier =
@@ -399,6 +435,7 @@ private fun DockedInputBar(
                 modifier =
                     Modifier
                         .weight(1f)
+                        .focusRequester(focusRequester)
                         .testTag("capture_description_field"),
                 placeholder = { Text("…or e.g. “$placeholder”") },
                 shape = RoundedCornerShape(28.dp),
@@ -435,6 +472,8 @@ private fun DockedInputBar(
     }
 }
 
+private fun previewLaunchers() = CaptureLaunchers(onPickFromGallery = {}, onTakePhoto = {}, onPickFromFiles = {}, onStartVoice = {})
+
 @EventsnapPreviews
 @Composable
 private fun CaptureScreenContentPreview() {
@@ -442,10 +481,7 @@ private fun CaptureScreenContentPreview() {
         CaptureScreenContent(
             state = CaptureState(),
             onAction = {},
-            onPickFromGallery = {},
-            onTakePhoto = {},
-            onPickFromFiles = {},
-            onStartVoice = {},
+            launchers = previewLaunchers(),
         )
     }
 }
@@ -457,10 +493,7 @@ private fun CaptureScreenContentTypingPreview() {
         CaptureScreenContent(
             state = CaptureState(description = "Dentist Tuesday 3pm"),
             onAction = {},
-            onPickFromGallery = {},
-            onTakePhoto = {},
-            onPickFromFiles = {},
-            onStartVoice = {},
+            launchers = previewLaunchers(),
         )
     }
 }
@@ -472,10 +505,7 @@ private fun CaptureScreenContentProcessingPreview() {
         CaptureScreenContent(
             state = CaptureState(description = "Concert Sat", isProcessing = true),
             onAction = {},
-            onPickFromGallery = {},
-            onTakePhoto = {},
-            onPickFromFiles = {},
-            onStartVoice = {},
+            launchers = previewLaunchers(),
         )
     }
 }
@@ -487,10 +517,7 @@ private fun CaptureScreenContentErrorPreview() {
         CaptureScreenContent(
             state = CaptureState(error = "No Groq API key set. Add one in Settings."),
             onAction = {},
-            onPickFromGallery = {},
-            onTakePhoto = {},
-            onPickFromFiles = {},
-            onStartVoice = {},
+            launchers = previewLaunchers(),
         )
     }
 }

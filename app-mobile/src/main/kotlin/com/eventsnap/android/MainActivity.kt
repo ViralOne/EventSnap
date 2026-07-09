@@ -23,11 +23,13 @@ class MainActivity : ComponentActivity() {
     private val settingsStore: SettingsStore by inject()
     private var sharedText by mutableStateOf<String?>(null)
     private var sharedMediaUri by mutableStateOf<Uri?>(null)
+    private var launchAction by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         consumeShareIntent(intent)
+        launchAction = intent?.getStringExtra(EXTRA_LAUNCH_ACTION)
         setContent {
             val themePreference by settingsStore.themePreference.collectAsStateWithLifecycle(ThemePreference.SYSTEM)
             val dynamicColor by settingsStore.dynamicColor.collectAsStateWithLifecycle(true)
@@ -39,7 +41,11 @@ class MainActivity : ComponentActivity() {
                 }
             EventsnapTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
                 DevToolsHost(enabled = BuildConfig.IS_QA) {
-                    EventsnapNavHost(sharedText = sharedText, sharedMediaUri = sharedMediaUri)
+                    EventsnapNavHost(
+                        sharedText = sharedText,
+                        sharedMediaUri = sharedMediaUri,
+                        launchAction = launchAction,
+                    )
                 }
             }
         }
@@ -48,6 +54,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         consumeShareIntent(intent)
+        launchAction = intent.getStringExtra(EXTRA_LAUNCH_ACTION)
     }
 
     /** Reads whatever was shared into the app (text, or an image/PDF Uri) from an ACTION_SEND intent. */
@@ -66,5 +73,10 @@ class MainActivity : ComponentActivity() {
         } else {
             intent.getParcelableExtra(Intent.EXTRA_STREAM)
         }
+    }
+
+    companion object {
+        /** Extra used by home-screen shortcuts, the widget, and the QS tile to auto-start a capture. */
+        const val EXTRA_LAUNCH_ACTION = "com.eventsnap.android.LAUNCH_ACTION"
     }
 }

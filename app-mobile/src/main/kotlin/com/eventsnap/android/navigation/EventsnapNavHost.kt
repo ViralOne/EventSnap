@@ -33,6 +33,7 @@ fun EventsnapNavHost(
     modifier: Modifier = Modifier,
     sharedText: String? = null,
     sharedMediaUri: android.net.Uri? = null,
+    launchAction: String? = null,
 ) {
     val backStack: SnapshotStateList<NavKey> = remember { mutableStateListOf(CaptureRoute) }
     val context = LocalContext.current
@@ -88,6 +89,7 @@ fun EventsnapNavHost(
                         },
                         sharedText = sharedText,
                         sharedMediaUri = sharedMediaUri,
+                        launchAction = launchAction,
                     )
                     reviewEntry(
                         onDone = { if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) },

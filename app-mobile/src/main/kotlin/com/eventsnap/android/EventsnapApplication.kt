@@ -7,6 +7,7 @@ import com.eventsnap.android.feature.capture.captureModules
 import com.eventsnap.android.feature.history.historyModules
 import com.eventsnap.android.feature.review.reviewModules
 import com.eventsnap.android.feature.settings.settingsModules
+import com.eventsnap.android.shortcuts.CaptureShortcuts
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import timber.log.Timber
@@ -27,5 +28,7 @@ class EventsnapApplication : Application() {
                     historyModules,
             )
         }
+        // Register the long-press-the-icon shortcuts (describe / photo / voice).
+        CaptureShortcuts.register(this)
     }
 }

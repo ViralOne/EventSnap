@@ -1,4 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">EventSnap</string>
+
+    <!-- Home-screen (long-press icon) shortcuts -->
+    <string name="shortcut_describe_short">Describe</string>
+    <string name="shortcut_describe_long">Describe an event</string>
+    <string name="shortcut_photo_short">Photo</string>
+    <string name="shortcut_photo_long">Take a photo</string>
+    <string name="shortcut_voice_short">Speak</string>
+    <string name="shortcut_voice_long">Speak an event</string>
+
+    <!-- Quick Settings tile -->
+    <string name="qs_tile_label">Add an event</string>
+
+    <!-- Home-screen widget -->
+    <string name="widget_description">Quickly add an event by typing or speaking.</string>
+    <string name="widget_add_event">Add an event</string>
 </resources>

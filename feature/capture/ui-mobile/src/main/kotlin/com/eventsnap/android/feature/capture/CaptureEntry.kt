@@ -9,6 +9,7 @@ fun EntryProviderScope<NavKey>.captureEntry(
     onNavigateToSettings: () -> Unit,
     sharedText: String? = null,
     sharedMediaUri: android.net.Uri? = null,
+    launchAction: String? = null,
 ) {
     entry<CaptureRoute> {
         CaptureScreen(
@@ -16,6 +17,7 @@ fun EntryProviderScope<NavKey>.captureEntry(
             onNavigateToSettings = onNavigateToSettings,
             sharedText = sharedText,
             sharedMediaUri = sharedMediaUri,
+            launchAction = launchAction,
         )
     }
 }

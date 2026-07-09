@@ -7,6 +7,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.eventsnap.android.feature.capture.components.CaptureLaunchers
 import com.eventsnap.android.feature.capture.components.CaptureScreenContent
 import com.eventsnap.android.feature.capture.mvi.CaptureAction
 import com.eventsnap.android.feature.capture.mvi.CaptureState
@@ -29,10 +30,13 @@ class CaptureScreenContentTest {
             CaptureScreenContent(
                 state = state,
                 onAction = { capturedActions.add(it) },
-                onPickFromGallery = { galleryClicks++ },
-                onTakePhoto = {},
-                onPickFromFiles = {},
-                onStartVoice = { voiceClicks++ },
+                launchers =
+                    CaptureLaunchers(
+                        onPickFromGallery = { galleryClicks++ },
+                        onTakePhoto = {},
+                        onPickFromFiles = {},
+                        onStartVoice = { voiceClicks++ },
+                    ),
             )
         }
     }
