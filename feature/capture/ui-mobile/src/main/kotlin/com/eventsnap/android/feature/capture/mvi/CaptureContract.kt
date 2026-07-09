@@ -26,6 +26,11 @@ sealed interface CaptureAction : ViewAction {
         val text: String,
     ) : CaptureAction
 
+    /** A picked/captured file couldn't be used (empty, unreadable, or unsupported). */
+    data class MediaError(
+        val message: String,
+    ) : CaptureAction
+
     data object ErrorDismissed : CaptureAction
 }
 

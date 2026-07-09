@@ -23,6 +23,7 @@ class CaptureViewModel(
                 extract(CaptureInput.Text(action.text))
             }
             is CaptureAction.SubmitImage -> extract(action.input)
+            is CaptureAction.MediaError -> setState { copy(isProcessing = false, error = action.message) }
             is CaptureAction.ErrorDismissed -> setState { copy(error = null) }
         }
     }

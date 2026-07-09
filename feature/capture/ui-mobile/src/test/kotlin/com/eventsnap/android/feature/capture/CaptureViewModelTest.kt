@@ -51,4 +51,16 @@ class CaptureViewModelTest {
                 assertThat(awaitItem().error).isNotNull()
             }
         }
+
+    @Test
+    fun `MediaError surfaces the message and stops processing`() =
+        runTest {
+            val vm = viewModel()
+            vm.setAction(CaptureAction.MediaError("That file looks empty or unreadable."))
+            vm.state.test {
+                val state = awaitItem()
+                assertThat(state.error).isEqualTo("That file looks empty or unreadable.")
+                assertThat(state.isProcessing).isFalse()
+            }
+        }
 }

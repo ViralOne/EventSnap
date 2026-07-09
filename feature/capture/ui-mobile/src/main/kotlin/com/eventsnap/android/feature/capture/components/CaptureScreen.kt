@@ -48,8 +48,14 @@ fun CaptureScreen(
     }
 
     fun submitUri(uri: Uri?) {
-        if (uri == null) return
-        val bytes = MediaReaders.readAsJpeg(context, uri) ?: return
+        if (uri == null) return // user cancelled the picker — not an error
+        val bytes = MediaReaders.readAsJpeg(context, uri)
+        if (bytes == null) {
+            viewModel.setAction(
+                CaptureAction.MediaError("That file looks empty or unreadable. Pick a valid image or PDF."),
+            )
+            return
+        }
         viewModel.setAction(CaptureAction.SubmitImage(CaptureInput.Image(bytes = bytes, mimeType = "image/jpeg")))
     }
 

@@ -18,17 +18,20 @@ object MediaReaders {
     private const val PDF_RENDER_WIDTH = 1240 // ~150 dpi A4 width, enough for OCR
     private const val JPEG_QUALITY = 90
 
-    /** Returns JPEG bytes for [uri], or null if it can't be read. */
+    /** Returns non-empty JPEG bytes for [uri], or null if it can't be read or is empty (0 KB). */
     fun readAsJpeg(
         context: Context,
         uri: Uri,
     ): ByteArray? {
         val type = context.contentResolver.getType(uri).orEmpty()
-        return if (type == "application/pdf" || uri.toString().endsWith(".pdf", ignoreCase = true)) {
-            renderPdfFirstPage(context, uri)
-        } else {
-            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        }
+        val bytes =
+            if (type == "application/pdf" || uri.toString().endsWith(".pdf", ignoreCase = true)) {
+                renderPdfFirstPage(context, uri)
+            } else {
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            }
+        // Reject empty files — a 0 KB image/PDF has nothing for the AI to read.
+        return bytes?.takeIf { it.isNotEmpty() }
     }
 
     private fun renderPdfFirstPage(

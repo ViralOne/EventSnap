@@ -8,8 +8,12 @@ import androidx.compose.runtime.setValue
 
 /**
  * Wraps the app content. When [enabled] is false this is a zero-cost passthrough — prod builds
- * pay nothing. When true, mounts the shake listener + dev-tools broadcast receiver and shows
- * [EnvSelectorDialog] on either trigger.
+ * pay nothing. When true, mounts ONLY the dev-tools broadcast receiver (triggered via
+ * `adb shell am broadcast`) and shows [EnvSelectorDialog].
+ *
+ * The shake-to-open trigger was intentionally removed: normal phone movement crossed the
+ * accelerometer threshold and popped the API-environment dialog on real users. The broadcast
+ * trigger cannot fire by accident, so it's the only debug entry point now.
  */
 @Composable
 fun DevToolsHost(
@@ -21,7 +25,6 @@ fun DevToolsHost(
         return
     }
     var showDialog by remember { mutableStateOf(false) }
-    ShakeListener(onShake = { showDialog = true })
     DevToolsBroadcastListener(onTrigger = { showDialog = true })
     content()
     if (showDialog) {
