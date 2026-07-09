@@ -10,6 +10,16 @@ interface EventHistoryDao {
     @Query("SELECT * FROM event_history ORDER BY createdAtEpochMillis DESC")
     fun observeAll(): Flow<List<EventHistoryEntity>>
 
+    @Query("SELECT * FROM event_history WHERE id = :id")
+    suspend fun getById(id: Long): EventHistoryEntity?
+
     @Insert
     suspend fun insert(entity: EventHistoryEntity): Long
+
+    /** Repoints a history row at a freshly re-created calendar event (used when restoring a deleted one). */
+    @Query("UPDATE event_history SET calendarEventId = :newCalendarEventId WHERE id = :id")
+    suspend fun updateCalendarEventId(
+        id: Long,
+        newCalendarEventId: Long,
+    )
 }

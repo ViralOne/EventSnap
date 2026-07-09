@@ -83,4 +83,27 @@ class CalendarWriterImpl(
             }
             eventId
         }
+
+    override suspend fun existingEventIds(candidateEventIds: List<Long>): Set<Long> =
+        withContext(Dispatchers.IO) {
+            val ids = candidateEventIds.filter { it > 0 }
+            if (ids.isEmpty()) return@withContext emptySet()
+            // Query the Events table for the ids we know about; deleted events won't come back.
+            val placeholders = ids.joinToString(",") { "?" }
+            val selection = "${CalendarContract.Events._ID} IN ($placeholders)"
+            val args = ids.map { it.toString() }.toTypedArray()
+            val found = mutableSetOf<Long>()
+            context.contentResolver
+                .query(
+                    CalendarContract.Events.CONTENT_URI,
+                    arrayOf(CalendarContract.Events._ID),
+                    selection,
+                    args,
+                    null,
+                )?.use { cursor ->
+                    val idCol = cursor.getColumnIndexOrThrow(CalendarContract.Events._ID)
+                    while (cursor.moveToNext()) found += cursor.getLong(idCol)
+                }
+            found
+        }
 }

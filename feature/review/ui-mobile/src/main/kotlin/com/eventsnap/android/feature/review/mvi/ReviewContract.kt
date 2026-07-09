@@ -46,6 +46,11 @@ sealed interface ReviewAction : ViewAction {
         val allDay: Boolean,
     ) : ReviewAction
 
+    data class TaskToggled(
+        val index: Int,
+        val isTask: Boolean,
+    ) : ReviewAction
+
     data class ReminderChanged(
         val index: Int,
         val minutesBefore: Int?,

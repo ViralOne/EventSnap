@@ -40,11 +40,18 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
-            <!-- Accept a shared image. -->
+            <!-- Accept a shared image (screenshot, photo). -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
+            </intent-filter>
+
+            <!-- Accept a shared PDF (ticket, invitation). -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
             </intent-filter>
         </activity>
 

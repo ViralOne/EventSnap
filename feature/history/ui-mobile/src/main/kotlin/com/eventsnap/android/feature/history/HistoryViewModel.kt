@@ -20,7 +20,13 @@ class HistoryViewModel(
     override suspend fun onAction(action: HistoryAction) {
         when (action) {
             is HistoryAction.Load -> observe()
+            is HistoryAction.RestoreEvent -> restore(action.historyId)
         }
+    }
+
+    private fun restore(historyId: Long) {
+        // Re-inserting refreshes the calendar; observeHistory() then re-validates the row automatically.
+        viewModelScope.launch { runCatching { repository.restoreEvent(historyId) } }
     }
 
     private fun observe() {

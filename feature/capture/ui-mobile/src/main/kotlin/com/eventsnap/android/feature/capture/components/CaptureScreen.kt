@@ -30,22 +30,11 @@ fun CaptureScreen(
     onNavigateToReview: () -> Unit,
     modifier: Modifier = Modifier,
     sharedText: String? = null,
+    sharedMediaUri: Uri? = null,
 ) {
     val viewModel: CaptureViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-
-    LaunchedEffect(sharedText) {
-        if (!sharedText.isNullOrBlank()) {
-            viewModel.setAction(CaptureAction.SubmitSharedText(sharedText))
-        }
-    }
-
-    HandleEffects(viewModel.effects) { effect ->
-        when (effect) {
-            is CaptureEffect.NavigateToReview -> onNavigateToReview()
-        }
-    }
 
     fun submitUri(uri: Uri?) {
         if (uri == null) return // user cancelled the picker — not an error
@@ -57,6 +46,23 @@ fun CaptureScreen(
             return
         }
         viewModel.setAction(CaptureAction.SubmitImage(CaptureInput.Image(bytes = bytes, mimeType = "image/jpeg")))
+    }
+
+    LaunchedEffect(sharedText) {
+        if (!sharedText.isNullOrBlank()) {
+            viewModel.setAction(CaptureAction.SubmitSharedText(sharedText))
+        }
+    }
+
+    // A screenshot/photo/PDF shared into the app: read and extract it just like a picked file.
+    LaunchedEffect(sharedMediaUri) {
+        if (sharedMediaUri != null) submitUri(sharedMediaUri)
+    }
+
+    HandleEffects(viewModel.effects) { effect ->
+        when (effect) {
+            is CaptureEffect.NavigateToReview -> onNavigateToReview()
+        }
     }
 
     // Gallery (photo picker — no storage permission needed on API 29+).

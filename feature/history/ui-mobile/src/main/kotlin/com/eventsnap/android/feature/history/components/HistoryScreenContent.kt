@@ -10,15 +10,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EditCalendar
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import com.eventsnap.android.core.designsystem.theme.EventsnapPreviews
@@ -34,7 +41,7 @@ import java.util.Date
 fun HistoryScreenContent(
     state: HistoryState,
     onOpenEvent: (Long) -> Unit,
-    onEditEvent: (Long) -> Unit,
+    onRestoreEvent: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().padding(Spacing.md)) {
@@ -62,7 +69,7 @@ fun HistoryScreenContent(
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             items(state.items, key = { it.id }) { item ->
-                HistoryRow(item = item, onOpenEvent = onOpenEvent, onEditEvent = onEditEvent)
+                HistoryRow(item = item, onOpenEvent = onOpenEvent, onRestoreEvent = onRestoreEvent)
             }
         }
     }
@@ -72,9 +79,14 @@ fun HistoryScreenContent(
 private fun HistoryRow(
     item: HistoryItem,
     onOpenEvent: (Long) -> Unit,
-    onEditEvent: (Long) -> Unit,
+    onRestoreEvent: (Long) -> Unit,
 ) {
-    val openable = item.calendarEventId > 0
+    // A deleted event can't be opened; a row without a tracked id (older data) also isn't openable.
+    val openable = item.calendarEventId > 0 && !item.deletedFromCalendar
+    // Dim the whole row when its calendar event was deleted.
+    val contentAlpha = if (item.deletedFromCalendar) 0.5f else 1f
+    var showRestoreDialog by remember { mutableStateOf(false) }
+
     Card(
         modifier =
             Modifier
@@ -88,7 +100,7 @@ private fun HistoryRow(
             modifier = Modifier.padding(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).alpha(contentAlpha)) {
                 Text(item.title, style = MaterialTheme.typography.titleMedium)
                 Text(
                     text = formatWhen(item),
@@ -103,16 +115,47 @@ private fun HistoryRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                if (item.deletedFromCalendar) {
+                    Text(
+                        text = "Deleted from calendar",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.testTag("history_deleted_${item.id}"),
+                    )
+                }
             }
-            if (openable) {
+            // Deleted rows get an enabled "+" to re-add the event to the calendar.
+            if (item.deletedFromCalendar) {
                 IconButton(
-                    onClick = { onEditEvent(item.calendarEventId) },
-                    modifier = Modifier.testTag("history_edit_${item.id}"),
+                    onClick = { showRestoreDialog = true },
+                    modifier = Modifier.testTag("history_restore_${item.id}"),
                 ) {
-                    Icon(Icons.Filled.EditCalendar, contentDescription = "Edit in calendar")
+                    Icon(Icons.Filled.Add, contentDescription = "Add back to calendar")
                 }
             }
         }
+    }
+
+    if (showRestoreDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestoreDialog = false },
+            title = { Text("Add event back?") },
+            text = { Text("Add \"${item.title}\" back to your calendar?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRestoreDialog = false
+                        onRestoreEvent(item.id)
+                    },
+                    modifier = Modifier.testTag("history_restore_confirm_${item.id}"),
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreDialog = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 
@@ -137,10 +180,20 @@ private fun HistoryScreenContentPreview() {
                         persistentListOf(
                             HistoryItem(1, "Dinner with Ana", 1_800_000_000_000L, false, "Osteria", 101, 1_800_000_000_000L),
                             HistoryItem(2, "Ramona's birthday", 1_800_500_000_000L, true, null, 102, 1_800_500_000_000L),
+                            HistoryItem(
+                                3,
+                                "Old meeting",
+                                1_800_900_000_000L,
+                                false,
+                                null,
+                                103,
+                                1_800_900_000_000L,
+                                deletedFromCalendar = true,
+                            ),
                         ),
                 ),
             onOpenEvent = {},
-            onEditEvent = {},
+            onRestoreEvent = {},
         )
     }
 }
@@ -149,6 +202,6 @@ private fun HistoryScreenContentPreview() {
 @Composable
 private fun HistoryScreenContentEmptyPreview() {
     EventsnapTheme {
-        HistoryScreenContent(state = HistoryState(isLoading = false), onOpenEvent = {}, onEditEvent = {})
+        HistoryScreenContent(state = HistoryState(isLoading = false), onOpenEvent = {}, onRestoreEvent = {})
     }
 }

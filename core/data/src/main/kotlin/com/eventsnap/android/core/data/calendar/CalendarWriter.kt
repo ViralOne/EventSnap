@@ -15,4 +15,10 @@ interface CalendarWriter {
         calendarId: Long,
         event: CalendarEvent,
     ): Long
+
+    /**
+     * Returns which of [candidateEventIds] still exist (not deleted) in the CalendarProvider.
+     * Used to detect history rows whose calendar event the user has since deleted.
+     */
+    suspend fun existingEventIds(candidateEventIds: List<Long>): Set<Long>
 }

@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -31,6 +32,7 @@ import com.eventsnap.android.feature.settings.settingsEntry
 fun EventsnapNavHost(
     modifier: Modifier = Modifier,
     sharedText: String? = null,
+    sharedMediaUri: android.net.Uri? = null,
 ) {
     val backStack: SnapshotStateList<NavKey> = remember { mutableStateListOf(CaptureRoute) }
     val context = LocalContext.current
@@ -67,7 +69,13 @@ fun EventsnapNavHost(
         },
     ) { innerPadding ->
         NavDisplay(
-            modifier = Modifier.padding(innerPadding),
+            // consumeWindowInsets tells descendants (e.g. the capture input bar's
+            // windowInsetsPadding) that the bottom-nav / system-nav insets are already
+            // applied here — without it they double-count and leave a dark band above the keyboard.
+            modifier =
+                Modifier
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding),
             backStack = backStack,
             onBack = { if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) },
             entryProvider =
@@ -75,6 +83,7 @@ fun EventsnapNavHost(
                     captureEntry(
                         onNavigateToReview = { backStack.add(ReviewRoute) },
                         sharedText = sharedText,
+                        sharedMediaUri = sharedMediaUri,
                     )
                     reviewEntry(
                         onDone = { if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) },

@@ -41,7 +41,8 @@ class CaptureViewModel(
                         setState { copy(isProcessing = false, error = "No events found. Try rephrasing or a clearer image.") }
                     } else {
                         extractedEventsHolder.set(events)
-                        setState { copy(isProcessing = false) }
+                        // Clear the input so the box is empty when the user comes back for the next event.
+                        setState { copy(isProcessing = false, description = "") }
                         setEffect(CaptureEffect.NavigateToReview)
                     }
                 }.onFailure { throwable ->

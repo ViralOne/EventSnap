@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -138,14 +139,34 @@ private fun EventCard(
                 }
             }
 
-            // All-day switch
+            // Task checkbox: mark a to-do (something to DO) vs an event (something to attend).
+            // Pre-checked from the AI's guess; the user confirms or corrects it. A task is always all-day.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("All-day", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                Switch(
-                    checked = event.allDay,
-                    onCheckedChange = { onAction(ReviewAction.AllDayToggled(index, it)) },
-                    modifier = Modifier.testTag("allday_switch_$index"),
+                Checkbox(
+                    checked = event.isTask,
+                    onCheckedChange = { onAction(ReviewAction.TaskToggled(index, it)) },
+                    modifier = Modifier.testTag("task_checkbox_$index"),
                 )
+                Column(modifier = Modifier.padding(start = Spacing.xs)) {
+                    Text("This is a task", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "A to-do with a deadline — saved as an all-day reminder",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // All-day switch — hidden for tasks (a task is inherently all-day).
+            if (!event.isTask) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("All-day", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = event.allDay,
+                        onCheckedChange = { onAction(ReviewAction.AllDayToggled(index, it)) },
+                        modifier = Modifier.testTag("allday_switch_$index"),
+                    )
+                }
             }
 
             // Start / end date+time editors

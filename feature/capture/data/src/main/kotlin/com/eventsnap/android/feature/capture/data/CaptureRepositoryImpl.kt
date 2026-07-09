@@ -4,6 +4,7 @@ import android.util.Base64
 import com.eventsnap.android.core.data.groq.EventPromptBuilder
 import com.eventsnap.android.core.data.groq.GroqApi
 import com.eventsnap.android.core.data.groq.GroqContentPart
+import com.eventsnap.android.core.data.groq.GroqEventDto
 import com.eventsnap.android.core.data.groq.GroqEventEnvelope
 import com.eventsnap.android.core.data.groq.GroqImageUrl
 import com.eventsnap.android.core.data.groq.GroqMessage
@@ -81,29 +82,20 @@ internal class CaptureRepositoryImpl(
         return envelope.events.mapNotNull { dto ->
             val title = dto.title?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
             val start = dto.start?.let(::parseFlexible) ?: return@mapNotNull null
-            toCalendarEvent(
-                title,
-                start,
-                dto.end?.let(::parseFlexible),
-                dto.allDay,
-                dto.location,
-                dto.description,
-                dto.reminderMinutesBefore,
-            )
+            toCalendarEvent(dto, title, start)
         }
     }
 
     private fun toCalendarEvent(
+        dto: GroqEventDto,
         title: String,
         start: ParsedTime,
-        end: ParsedTime?,
-        allDayHint: Boolean?,
-        location: String?,
-        description: String?,
-        reminderMinutesBefore: Int?,
     ): CalendarEvent {
+        val end = dto.end?.let(::parseFlexible)
+        val isTask = dto.isTask == true
         // A date-only value (no clock time) means an all-day event, even if the model didn't set the flag.
-        val allDay = allDayHint == true || start.dateOnly
+        // Tasks are to-dos with a deadline, not a time slot, so they're all-day too.
+        val allDay = dto.allDay == true || start.dateOnly || isTask
         val zone = ZoneId.systemDefault()
         val startMillis =
             start.dateTime
@@ -131,9 +123,10 @@ internal class CaptureRepositoryImpl(
             startEpochMillis = startMillis,
             endEpochMillis = endMillis,
             allDay = allDay,
-            location = location?.takeIf { it.isNotBlank() },
-            description = description?.takeIf { it.isNotBlank() },
-            reminderMinutesBefore = reminderMinutesBefore,
+            location = dto.location?.takeIf { it.isNotBlank() },
+            description = dto.description?.takeIf { it.isNotBlank() },
+            reminderMinutesBefore = dto.reminderMinutesBefore,
+            isTask = isTask,
         )
     }
 

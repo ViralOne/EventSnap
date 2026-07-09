@@ -14,17 +14,17 @@ object CalendarEventOpener {
     /** True if [eventId] refers to a real inserted event (rows created before id-tracking are -1). */
     fun canOpen(eventId: Long): Boolean = eventId > 0
 
-    /** Opens the event in view mode. Returns false if no calendar app handled the intent. */
+    /**
+     * Opens the event detail in the user's calendar app (Google Calendar, etc.), where its own
+     * edit pencil lets the user modify it. Returns false if no calendar app handled the intent.
+     *
+     * We deliberately use ACTION_VIEW rather than ACTION_EDIT: Google Calendar ignores ACTION_EDIT
+     * on an existing event URI and opens a blank *new-event* editor instead of the target event.
+     */
     fun view(
         context: Context,
         eventId: Long,
     ): Boolean = launch(context, Intent.ACTION_VIEW, eventId)
-
-    /** Opens the event in the calendar app's editor. Returns false if nothing handled it. */
-    fun edit(
-        context: Context,
-        eventId: Long,
-    ): Boolean = launch(context, Intent.ACTION_EDIT, eventId)
 
     private fun launch(
         context: Context,

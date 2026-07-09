@@ -39,7 +39,8 @@ object EventPromptBuilder {
                   "allDay": false,
                   "location": "string or null",
                   "description": "string or null",
-                  "reminderMinutesBefore": 30
+                  "reminderMinutesBefore": 30,
+                  "isTask": false
                 }
               ]
             }
@@ -49,6 +50,16 @@ object EventPromptBuilder {
               and "description" IN THE SAME LANGUAGE the user wrote. Do NOT translate them.
             - Clean the title: fix typos, expand abbreviations, capitalize sensibly
               ("dinnr w sara" → "Dinner with Sara"; "sedinta cu Ana" → "Ședință cu Ana").
+
+            EVENT vs TASK ("isTask"):
+            - EVENT (isTask false): something that happens at a time/place, that the user attends or
+              observes — meeting, appointment, concert, flight, birthday, party.
+            - TASK (isTask true): something the user must DO, an action item with a deadline but no
+              real time slot — "buy a gift", "renew passport", "pay rent by the 1st", "call the plumber".
+              Verbs of doing (buy, call, send, pay, submit, renew, fix, prepare) usually mean a task.
+            - When it's a task, set "isTask": true, use the DEADLINE as the date, and prefer
+              date-only + "allDay": true (a task has no clock slot unless the user gives a specific time).
+            - When unsure, treat it as an event (isTask false). Default is false.
 
             MULTIPLE EVENTS:
             - Return one entry per distinct event. One note can hold several

@@ -6,5 +6,5 @@ import org.koin.dsl.module
 
 val historyDataModule =
     module {
-        single<HistoryRepository> { HistoryRepositoryImpl(dao = get()) }
+        single<HistoryRepository> { HistoryRepositoryImpl(dao = get(), calendarWriter = get()) }
     }

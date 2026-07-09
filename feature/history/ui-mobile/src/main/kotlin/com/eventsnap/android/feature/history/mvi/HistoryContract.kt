@@ -14,6 +14,11 @@ data class HistoryState(
 
 sealed interface HistoryAction : ViewAction {
     data object Load : HistoryAction
+
+    /** Re-add a previously-deleted event back to the calendar (by history row id). */
+    data class RestoreEvent(
+        val historyId: Long,
+    ) : HistoryAction
 }
 
 sealed interface HistoryEffect : ViewSideEffect

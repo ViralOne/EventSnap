@@ -16,6 +16,12 @@ data class CalendarEvent(
     val reminderMinutesBefore: Int? = null,
     /** IANA timezone id (e.g. "Europe/Bucharest"); null means the device default. */
     val timeZoneId: String? = null,
+    /**
+     * True when this is a to-do (something to *do*) rather than an event to *attend*. Tasks are
+     * written to the calendar as an all-day reminder. The AI proposes a value; the user confirms
+     * it with the checkbox on the review screen.
+     */
+    val isTask: Boolean = false,
 )
 
 /** A calendar the user can write events into, as reported by the CalendarProvider. */

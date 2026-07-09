@@ -21,4 +21,5 @@ data class GroqEventDto(
     val location: String? = null,
     val description: String? = null,
     val reminderMinutesBefore: Int? = null,
+    val isTask: Boolean? = null,
 )

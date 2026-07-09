@@ -29,6 +29,11 @@ class ReviewViewModel(
                     event.copy(endEpochMillis = action.epochMillis.coerceAtLeast(event.startEpochMillis))
                 }
             is ReviewAction.AllDayToggled -> mutateEvent(action.index) { it.copy(allDay = action.allDay) }
+            is ReviewAction.TaskToggled ->
+                mutateEvent(action.index) { event ->
+                    // A task is a to-do with a deadline, not a time slot, so it's always all-day.
+                    event.copy(isTask = action.isTask, allDay = if (action.isTask) true else event.allDay)
+                }
             is ReviewAction.ReminderChanged -> mutateEvent(action.index) { it.copy(reminderMinutesBefore = action.minutesBefore) }
             is ReviewAction.RemoveEvent ->
                 setState {
