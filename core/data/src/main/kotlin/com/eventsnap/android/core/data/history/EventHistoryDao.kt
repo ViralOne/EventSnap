@@ -22,4 +22,8 @@ interface EventHistoryDao {
         id: Long,
         newCalendarEventId: Long,
     )
+
+    /** Removes history rows by id (used to undo a just-added batch). */
+    @Query("DELETE FROM event_history WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
 }

@@ -18,7 +18,17 @@ class SettingsViewModel(
             val key = repository.groqApiKey.first()
             val reminder = repository.defaultReminderMinutes.first()
             val defaultCal = repository.defaultCalendarId.first()
-            setState { copy(hasSavedKey = !key.isNullOrBlank(), reminderMinutes = reminder, defaultCalendarId = defaultCal) }
+            val theme = repository.themePreference.first()
+            val dynamic = repository.dynamicColor.first()
+            setState {
+                copy(
+                    hasSavedKey = !key.isNullOrBlank(),
+                    reminderMinutes = reminder,
+                    defaultCalendarId = defaultCal,
+                    themePreference = theme,
+                    dynamicColor = dynamic,
+                )
+            }
             runCatching { repository.writableCalendars() }
                 .onSuccess { calendars -> setState { copy(calendars = calendars.toImmutableList()) } }
         }
@@ -35,6 +45,14 @@ class SettingsViewModel(
             is SettingsAction.ReminderChanged -> {
                 repository.setDefaultReminderMinutes(action.minutes)
                 setState { copy(reminderMinutes = action.minutes) }
+            }
+            is SettingsAction.ThemeSelected -> {
+                repository.setThemePreference(action.preference)
+                setState { copy(themePreference = action.preference) }
+            }
+            is SettingsAction.DynamicColorToggled -> {
+                repository.setDynamicColor(action.enabled)
+                setState { copy(dynamicColor = action.enabled) }
             }
             is SettingsAction.MessageDismissed -> setState { copy(savedMessage = null) }
         }

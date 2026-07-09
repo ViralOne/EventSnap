@@ -82,6 +82,10 @@ fun EventsnapNavHost(
                 entryProvider {
                     captureEntry(
                         onNavigateToReview = { backStack.add(ReviewRoute) },
+                        onNavigateToSettings = {
+                            backStack.clear()
+                            backStack.add(SettingsRoute)
+                        },
                         sharedText = sharedText,
                         sharedMediaUri = sharedMediaUri,
                     )

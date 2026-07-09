@@ -22,4 +22,6 @@ data class GroqEventDto(
     val description: String? = null,
     val reminderMinutesBefore: Int? = null,
     val isTask: Boolean? = null,
+    /** One of: none, daily, weekly, monthly, yearly. */
+    val recurrence: String? = null,
 )

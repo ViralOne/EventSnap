@@ -7,14 +7,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.eventsnap.android.core.data.settings.SettingsStore
 import com.eventsnap.android.core.designsystem.theme.EventsnapTheme
+import com.eventsnap.android.core.model.ThemePreference
 import com.eventsnap.android.core.ui.mobile.dev.DevToolsHost
 import com.eventsnap.android.navigation.EventsnapNavHost
+import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
+    private val settingsStore: SettingsStore by inject()
     private var sharedText by mutableStateOf<String?>(null)
     private var sharedMediaUri by mutableStateOf<Uri?>(null)
 
@@ -23,7 +29,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         consumeShareIntent(intent)
         setContent {
-            EventsnapTheme {
+            val themePreference by settingsStore.themePreference.collectAsStateWithLifecycle(ThemePreference.SYSTEM)
+            val dynamicColor by settingsStore.dynamicColor.collectAsStateWithLifecycle(true)
+            val darkTheme =
+                when (themePreference) {
+                    ThemePreference.SYSTEM -> isSystemInDarkTheme()
+                    ThemePreference.LIGHT -> false
+                    ThemePreference.DARK -> true
+                }
+            EventsnapTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
                 DevToolsHost(enabled = BuildConfig.IS_QA) {
                     EventsnapNavHost(sharedText = sharedText, sharedMediaUri = sharedMediaUri)
                 }

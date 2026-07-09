@@ -16,6 +16,25 @@ class ReviewViewModel(
     override suspend fun onAction(action: ReviewAction) {
         when (action) {
             is ReviewAction.Load -> load()
+            is ReviewAction.RemoveEvent ->
+                setState {
+                    copy(events = events.filterIndexed { i, _ -> i != action.index }.toImmutableList())
+                }
+            is ReviewAction.CalendarSelected -> setState { copy(selectedCalendarId = action.calendarId) }
+            is ReviewAction.ErrorDismissed -> setState { copy(error = null) }
+            is ReviewAction.Confirm -> confirm()
+            is ReviewAction.Undo ->
+                viewModelScope.launch {
+                    runCatching { repository.undo(action.batch) }
+                        .onFailure { throwable -> setState { copy(error = throwable.message ?: "Could not undo.") } }
+                }
+            else -> onFieldEdit(action)
+        }
+    }
+
+    /** Per-event field edits from the review cards; kept separate to keep [onAction] simple. */
+    private fun onFieldEdit(action: ReviewAction) {
+        when (action) {
             is ReviewAction.TitleChanged -> mutateEvent(action.index) { it.copy(title = action.value) }
             is ReviewAction.LocationChanged -> mutateEvent(action.index) { it.copy(location = action.value) }
             is ReviewAction.StartChanged ->
@@ -35,13 +54,8 @@ class ReviewViewModel(
                     event.copy(isTask = action.isTask, allDay = if (action.isTask) true else event.allDay)
                 }
             is ReviewAction.ReminderChanged -> mutateEvent(action.index) { it.copy(reminderMinutesBefore = action.minutesBefore) }
-            is ReviewAction.RemoveEvent ->
-                setState {
-                    copy(events = events.filterIndexed { i, _ -> i != action.index }.toImmutableList())
-                }
-            is ReviewAction.CalendarSelected -> setState { copy(selectedCalendarId = action.calendarId) }
-            is ReviewAction.ErrorDismissed -> setState { copy(error = null) }
-            is ReviewAction.Confirm -> confirm()
+            is ReviewAction.RecurrenceChanged -> mutateEvent(action.index) { it.copy(recurrence = action.recurrence) }
+            else -> Unit
         }
     }
 
@@ -92,10 +106,11 @@ class ReviewViewModel(
         setState { copy(isSaving = true, error = null) }
         viewModelScope.launch {
             runCatching { repository.confirm(calendarId, current.events) }
-                .onSuccess {
+                .onSuccess { batch ->
                     setState { copy(isSaving = false) }
-                    setEffect(ReviewEffect.ShowSaved(current.events.size))
-                    setEffect(ReviewEffect.NavigateBackToCapture)
+                    // The screen shows a "saved · Undo" snackbar and navigates back when it resolves,
+                    // so we don't emit a navigate effect here.
+                    setEffect(ReviewEffect.ShowSaved(current.events.size, batch))
                 }.onFailure { throwable ->
                     setState { copy(isSaving = false, error = throwable.message ?: "Could not add the events.") }
                 }

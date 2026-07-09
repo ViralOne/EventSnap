@@ -4,7 +4,9 @@ import com.eventsnap.android.core.ViewAction
 import com.eventsnap.android.core.ViewSideEffect
 import com.eventsnap.android.core.ViewState
 import com.eventsnap.android.core.model.CalendarEvent
+import com.eventsnap.android.core.model.Recurrence
 import com.eventsnap.android.core.model.TargetCalendar
+import com.eventsnap.android.feature.review.data.AddedBatch
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
@@ -56,6 +58,11 @@ sealed interface ReviewAction : ViewAction {
         val minutesBefore: Int?,
     ) : ReviewAction
 
+    data class RecurrenceChanged(
+        val index: Int,
+        val recurrence: Recurrence,
+    ) : ReviewAction
+
     data class RemoveEvent(
         val index: Int,
     ) : ReviewAction
@@ -66,12 +73,19 @@ sealed interface ReviewAction : ViewAction {
 
     data object Confirm : ReviewAction
 
+    /** Undo the just-added batch (delete the calendar events + history rows). */
+    data class Undo(
+        val batch: AddedBatch,
+    ) : ReviewAction
+
     data object ErrorDismissed : ReviewAction
 }
 
 sealed interface ReviewEffect : ViewSideEffect {
+    /** Events were added; carries the batch so the UI can offer an Undo. */
     data class ShowSaved(
         val count: Int,
+        val batch: AddedBatch,
     ) : ReviewEffect
 
     data object NavigateBackToCapture : ReviewEffect

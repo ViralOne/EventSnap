@@ -13,8 +13,11 @@ import com.eventsnap.android.core.data.groq.GroqRequest
 import com.eventsnap.android.core.data.settings.SettingsStore
 import com.eventsnap.android.core.model.CalendarEvent
 import com.eventsnap.android.core.model.CaptureInput
+import com.eventsnap.android.core.model.Recurrence
 import com.squareup.moshi.Moshi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -26,6 +29,8 @@ internal class CaptureRepositoryImpl(
     private val settingsStore: SettingsStore,
     private val moshi: Moshi,
 ) : CaptureRepository {
+    override val hasApiKey: Flow<Boolean> = settingsStore.groqApiKey.map { !it.isNullOrBlank() }
+
     override suspend fun extractEvents(input: CaptureInput): List<CalendarEvent> {
         val apiKey = settingsStore.groqApiKey.first()
         require(!apiKey.isNullOrBlank()) { "No Groq API key set. Add one in Settings." }
@@ -127,8 +132,18 @@ internal class CaptureRepositoryImpl(
             description = dto.description?.takeIf { it.isNotBlank() },
             reminderMinutesBefore = dto.reminderMinutesBefore,
             isTask = isTask,
+            recurrence = parseRecurrence(dto.recurrence),
         )
     }
+
+    private fun parseRecurrence(value: String?): Recurrence =
+        when (value?.trim()?.lowercase()) {
+            "daily" -> Recurrence.DAILY
+            "weekly" -> Recurrence.WEEKLY
+            "monthly" -> Recurrence.MONTHLY
+            "yearly" -> Recurrence.YEARLY
+            else -> Recurrence.NONE
+        }
 
     /** A parsed instant plus whether the source had only a date (→ all-day). */
     private data class ParsedTime(

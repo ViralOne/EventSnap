@@ -22,7 +22,18 @@ data class CalendarEvent(
      * it with the checkbox on the review screen.
      */
     val isTask: Boolean = false,
+    /** How often the event repeats. The AI proposes it; the user can change it on the review screen. */
+    val recurrence: Recurrence = Recurrence.NONE,
 )
+
+/** Supported repeat frequencies. Maps to a CalendarProvider RRULE (RFC 5545). */
+enum class Recurrence {
+    NONE,
+    DAILY,
+    WEEKLY,
+    MONTHLY,
+    YEARLY,
+}
 
 /** A calendar the user can write events into, as reported by the CalendarProvider. */
 data class TargetCalendar(

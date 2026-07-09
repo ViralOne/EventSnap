@@ -6,12 +6,14 @@ import com.eventsnap.android.feature.capture.components.CaptureScreen
 
 fun EntryProviderScope<NavKey>.captureEntry(
     onNavigateToReview: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     sharedText: String? = null,
     sharedMediaUri: android.net.Uri? = null,
 ) {
     entry<CaptureRoute> {
         CaptureScreen(
             onNavigateToReview = onNavigateToReview,
+            onNavigateToSettings = onNavigateToSettings,
             sharedText = sharedText,
             sharedMediaUri = sharedMediaUri,
         )

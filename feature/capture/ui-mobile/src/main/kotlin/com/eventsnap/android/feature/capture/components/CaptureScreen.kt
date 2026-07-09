@@ -28,6 +28,7 @@ import java.io.File
 @Composable
 fun CaptureScreen(
     onNavigateToReview: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
     sharedText: String? = null,
     sharedMediaUri: Uri? = null,
@@ -62,6 +63,7 @@ fun CaptureScreen(
     HandleEffects(viewModel.effects) { effect ->
         when (effect) {
             is CaptureEffect.NavigateToReview -> onNavigateToReview()
+            is CaptureEffect.NavigateToSettings -> onNavigateToSettings()
         }
     }
 

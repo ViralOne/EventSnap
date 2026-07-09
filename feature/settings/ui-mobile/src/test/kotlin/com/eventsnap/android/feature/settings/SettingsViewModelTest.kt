@@ -1,5 +1,6 @@
 package com.eventsnap.android.feature.settings
 
+import com.eventsnap.android.core.model.ThemePreference
 import com.eventsnap.android.feature.settings.data.SettingsRepository
 import com.eventsnap.android.feature.settings.mvi.SettingsAction
 import com.eventsnap.android.testing.MainCoroutineRule
@@ -21,6 +22,8 @@ class SettingsViewModelTest {
             whenever(groqApiKey).thenReturn(flowOf(null))
             whenever(defaultCalendarId).thenReturn(flowOf(null))
             whenever(defaultReminderMinutes).thenReturn(flowOf(30))
+            whenever(themePreference).thenReturn(flowOf(ThemePreference.SYSTEM))
+            whenever(dynamicColor).thenReturn(flowOf(true))
         }
 
     @Test
@@ -35,6 +38,19 @@ class SettingsViewModelTest {
 
             verify(repo).setGroqApiKey("gsk_test")
             assertThat(vm.state.value.hasSavedKey).isTrue()
+        }
+
+    @Test
+    fun `selecting a theme persists it and reflects in state`() =
+        runTest {
+            val repo = repository()
+            whenever(repo.writableCalendars()).thenReturn(emptyList())
+
+            val vm = SettingsViewModel(repo)
+            vm.setAction(SettingsAction.ThemeSelected(ThemePreference.DARK))
+
+            verify(repo).setThemePreference(ThemePreference.DARK)
+            assertThat(vm.state.value.themePreference).isEqualTo(ThemePreference.DARK)
         }
 
     @Test

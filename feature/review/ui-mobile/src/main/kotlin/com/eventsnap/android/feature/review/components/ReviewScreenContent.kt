@@ -27,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +47,7 @@ import com.eventsnap.android.core.designsystem.theme.EventsnapPreviews
 import com.eventsnap.android.core.designsystem.theme.EventsnapTheme
 import com.eventsnap.android.core.designsystem.theme.Spacing
 import com.eventsnap.android.core.model.CalendarEvent
+import com.eventsnap.android.core.model.Recurrence
 import com.eventsnap.android.core.model.TargetCalendar
 import com.eventsnap.android.feature.review.mvi.ReviewAction
 import com.eventsnap.android.feature.review.mvi.ReviewState
@@ -64,57 +66,72 @@ private val REMINDER_CHOICES: List<Pair<String, Int?>> =
         "1 day before" to 1440,
     )
 
+private val RECURRENCE_CHOICES: List<Pair<String, Recurrence>> =
+    listOf(
+        "Does not repeat" to Recurrence.NONE,
+        "Daily" to Recurrence.DAILY,
+        "Weekly" to Recurrence.WEEKLY,
+        "Monthly" to Recurrence.MONTHLY,
+        "Yearly" to Recurrence.YEARLY,
+    )
+
 @Composable
 fun ReviewScreenContent(
     state: ReviewState,
     onAction: (ReviewAction) -> Unit,
     modifier: Modifier = Modifier,
+    snackbarHost: @Composable () -> Unit = {},
 ) {
-    Column(modifier = modifier.fillMaxSize().padding(Spacing.md)) {
-        Text("Review events", style = MaterialTheme.typography.titleLarge)
+    Scaffold(
+        modifier = modifier,
+        snackbarHost = snackbarHost,
+    ) { innerPadding ->
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(Spacing.md)) {
+            Text("Review events", style = MaterialTheme.typography.titleLarge)
 
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            itemsIndexed(state.events, key = { index, _ -> index }) { index, event ->
-                EventCard(index = index, event = event, onAction = onAction)
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                itemsIndexed(state.events, key = { index, _ -> index }) { index, event ->
+                    EventCard(index = index, event = event, onAction = onAction)
+                }
+
+                if (state.calendars.isNotEmpty()) {
+                    item {
+                        Text(
+                            "Add to calendar",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(top = Spacing.sm),
+                        )
+                    }
+                    items(state.calendars, key = { it.id }) { calendar ->
+                        CalendarOption(
+                            calendar = calendar,
+                            selected = state.selectedCalendarId == calendar.id,
+                            onSelect = { onAction(ReviewAction.CalendarSelected(calendar.id)) },
+                        )
+                    }
+                }
             }
 
-            if (state.calendars.isNotEmpty()) {
-                item {
-                    Text(
-                        "Add to calendar",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(top = Spacing.sm),
-                    )
-                }
-                items(state.calendars, key = { it.id }) { calendar ->
-                    CalendarOption(
-                        calendar = calendar,
-                        selected = state.selectedCalendarId == calendar.id,
-                        onSelect = { onAction(ReviewAction.CalendarSelected(calendar.id)) },
-                    )
-                }
+            val error = state.error
+            if (error != null) {
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.fillMaxWidth().testTag("review_error"),
+                )
             }
-        }
 
-        val error = state.error
-        if (error != null) {
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.fillMaxWidth().testTag("review_error"),
-            )
-        }
-
-        Button(
-            onClick = { onAction(ReviewAction.Confirm) },
-            enabled = !state.isSaving && state.events.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth().testTag("review_confirm").padding(top = Spacing.sm),
-        ) {
-            Text(if (state.isSaving) "Adding…" else "Add to calendar")
+            Button(
+                onClick = { onAction(ReviewAction.Confirm) },
+                enabled = !state.isSaving && state.events.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth().testTag("review_confirm").padding(top = Spacing.sm),
+            ) {
+                Text(if (state.isSaving) "Adding…" else "Add to calendar")
+            }
         }
     }
 }
@@ -193,6 +210,11 @@ private fun EventCard(
             ReminderDropdown(
                 selected = event.reminderMinutesBefore,
                 onSelected = { onAction(ReviewAction.ReminderChanged(index, it)) },
+            )
+
+            RecurrenceDropdown(
+                selected = event.recurrence,
+                onSelected = { onAction(ReviewAction.RecurrenceChanged(index, it)) },
             )
         }
     }
@@ -310,6 +332,33 @@ private fun ReminderDropdown(
                     onClick = {
                         expanded = false
                         onSelected(minutes)
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecurrenceDropdown(
+    selected: Recurrence,
+    onSelected: (Recurrence) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val label = RECURRENCE_CHOICES.firstOrNull { it.second == selected }?.first ?: "Does not repeat"
+    Box {
+        AssistChip(
+            onClick = { expanded = true },
+            label = { Text("Repeat: $label") },
+            modifier = Modifier.testTag("recurrence_chip"),
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            RECURRENCE_CHOICES.forEach { (text, value) ->
+                DropdownMenuItem(
+                    text = { Text(text) },
+                    onClick = {
+                        expanded = false
+                        onSelected(value)
                     },
                 )
             }

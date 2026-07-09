@@ -21,4 +21,7 @@ interface CalendarWriter {
      * Used to detect history rows whose calendar event the user has since deleted.
      */
     suspend fun existingEventIds(candidateEventIds: List<Long>): Set<Long>
+
+    /** Deletes the calendar events with [eventIds] (used to undo a just-added batch). */
+    suspend fun deleteEvents(eventIds: List<Long>)
 }

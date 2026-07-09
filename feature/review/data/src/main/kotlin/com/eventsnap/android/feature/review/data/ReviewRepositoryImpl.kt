@@ -21,27 +21,47 @@ internal class ReviewRepositoryImpl(
 
     override suspend fun defaultCalendarId(): Long? = settingsStore.defaultCalendarId.first()
 
+    // Catches Throwable deliberately: any failure mid-batch must trigger rollback, then rethrow.
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun confirm(
         calendarId: Long,
         events: List<CalendarEvent>,
-    ) {
+    ): AddedBatch {
         val now = System.currentTimeMillis()
-        events.forEach { event ->
-            val calendarEventId = calendarWriter.insertEvent(calendarId, event)
-            historyDao.insert(
-                EventHistoryEntity(
-                    title = event.title,
-                    startEpochMillis = event.startEpochMillis,
-                    endEpochMillis = event.endEpochMillis,
-                    allDay = event.allDay,
-                    location = event.location,
-                    description = event.description,
-                    reminderMinutesBefore = event.reminderMinutesBefore,
-                    calendarId = calendarId,
-                    calendarEventId = calendarEventId,
-                    createdAtEpochMillis = now,
-                ),
-            )
+        val calendarEventIds = mutableListOf<Long>()
+        val historyIds = mutableListOf<Long>()
+        try {
+            events.forEach { event ->
+                val calendarEventId = calendarWriter.insertEvent(calendarId, event)
+                calendarEventIds += calendarEventId
+                val historyId =
+                    historyDao.insert(
+                        EventHistoryEntity(
+                            title = event.title,
+                            startEpochMillis = event.startEpochMillis,
+                            endEpochMillis = event.endEpochMillis,
+                            allDay = event.allDay,
+                            location = event.location,
+                            description = event.description,
+                            reminderMinutesBefore = event.reminderMinutesBefore,
+                            calendarId = calendarId,
+                            calendarEventId = calendarEventId,
+                            createdAtEpochMillis = now,
+                        ),
+                    )
+                historyIds += historyId
+            }
+        } catch (t: Throwable) {
+            // A mid-batch failure would leave partial data; roll back what we already created.
+            runCatching { calendarWriter.deleteEvents(calendarEventIds) }
+            runCatching { historyDao.deleteByIds(historyIds) }
+            throw t
         }
+        return AddedBatch(calendarEventIds = calendarEventIds, historyIds = historyIds)
+    }
+
+    override suspend fun undo(batch: AddedBatch) {
+        calendarWriter.deleteEvents(batch.calendarEventIds)
+        historyDao.deleteByIds(batch.historyIds)
     }
 }

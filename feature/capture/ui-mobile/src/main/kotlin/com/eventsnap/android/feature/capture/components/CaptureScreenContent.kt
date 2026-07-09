@@ -1,5 +1,6 @@
 package com.eventsnap.android.feature.capture.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -41,7 +43,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,6 +63,7 @@ import com.eventsnap.android.core.designsystem.theme.EventsnapTheme
 import com.eventsnap.android.core.designsystem.theme.Spacing
 import com.eventsnap.android.feature.capture.mvi.CaptureAction
 import com.eventsnap.android.feature.capture.mvi.CaptureState
+import kotlinx.coroutines.delay
 
 @Composable
 fun CaptureScreenContent(
@@ -105,6 +110,12 @@ fun CaptureScreenContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            // First-run prompt: the app needs a free Groq key to read events. Shown until one is saved.
+            if (!state.hasApiKey) {
+                Spacer(Modifier.height(Spacing.lg))
+                ApiKeyOnboardingCard(onSetUp = { onAction(CaptureAction.OpenApiKeySetup) })
+            }
+
             Spacer(Modifier.height(Spacing.lg))
             HowItWorks()
             Spacer(Modifier.height(Spacing.lg))
@@ -146,14 +157,7 @@ fun CaptureScreenContent(
 
             if (state.isProcessing) {
                 Spacer(Modifier.height(Spacing.lg))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Text(
-                        "Reading with AI…",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(start = Spacing.sm),
-                    )
-                }
+                ProcessingCard()
             }
 
             val error = state.error
@@ -170,13 +174,46 @@ fun CaptureScreenContent(
             Spacer(Modifier.height(Spacing.lg))
         }
 
+        // A fresh example prompt each time the screen appears, to hint how to phrase an event.
+        val placeholder = remember { CAPTURE_PLACEHOLDERS.random() }
         DockedInputBar(
             value = state.description,
             enabled = !state.isProcessing,
+            placeholder = placeholder,
             onValueChange = { onAction(CaptureAction.DescriptionChanged(it)) },
             onSubmit = { onAction(CaptureAction.SubmitText) },
             onVoice = onStartVoice,
         )
+    }
+}
+
+@Composable
+private fun ApiKeyOnboardingCard(onSetUp: () -> Unit) {
+    Surface(
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        modifier = Modifier.fillMaxWidth().testTag("capture_onboarding"),
+    ) {
+        Column(modifier = Modifier.padding(Spacing.md)) {
+            Text(
+                "Add your free Groq key to start",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Spacer(Modifier.height(Spacing.xs))
+            Text(
+                "EventSnap uses Groq's free AI to read your events. It takes a minute to paste a key — " +
+                    "we'll take you to Settings.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Spacer(Modifier.height(Spacing.md))
+            Button(onClick = onSetUp, modifier = Modifier.testTag("capture_onboarding_setup")) {
+                Text("Set up now")
+            }
+        }
     }
 }
 
@@ -298,10 +335,51 @@ private fun ActionRow(
     }
 }
 
+private val PROCESSING_STEPS =
+    listOf("Reading your input…", "Understanding the details…", "Pulling out dates & places…", "Almost there…")
+
+/**
+ * A prominent processing state shown while the AI extracts events. Cycles through a few status
+ * lines so the 1–3s wait feels intentional rather than stuck.
+ */
+@Composable
+private fun ProcessingCard() {
+    var step by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        // Advance through the steps, holding on the last one until extraction finishes.
+        while (step < PROCESSING_STEPS.lastIndex) {
+            delay(1200)
+            step += 1
+        }
+    }
+    Surface(
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth().testTag("capture_processing"),
+    ) {
+        Row(
+            modifier = Modifier.padding(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+            AnimatedContent(targetState = step, label = "processing_step") { current ->
+                Text(
+                    PROCESSING_STEPS[current],
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = Spacing.md),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun DockedInputBar(
     value: String,
     enabled: Boolean,
+    placeholder: String,
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onVoice: () -> Unit,
@@ -322,7 +400,7 @@ private fun DockedInputBar(
                     Modifier
                         .weight(1f)
                         .testTag("capture_description_field"),
-                placeholder = { Text("…or describe an event") },
+                placeholder = { Text("…or e.g. “$placeholder”") },
                 shape = RoundedCornerShape(28.dp),
                 // Grows from 1 line up to 5 as the user types a longer description, then scrolls.
                 minLines = 1,

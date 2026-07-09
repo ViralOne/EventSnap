@@ -40,7 +40,8 @@ object EventPromptBuilder {
                   "location": "string or null",
                   "description": "string or null",
                   "reminderMinutesBefore": 30,
-                  "isTask": false
+                  "isTask": false,
+                  "recurrence": "none"
                 }
               ]
             }
@@ -80,8 +81,10 @@ object EventPromptBuilder {
             - location: only if a place is mentioned; else null. Don't guess an address.
             - reminderMinutesBefore: 30 unless the user asks otherwise ("remind me 1h before"→60,
               "the day before"→1440). Use null only if they say no reminder.
-            - Recurrence ("every Monday", "daily") is NOT supported: create the single nearest
-              upcoming occurrence and note the recurrence in "description".
+            - Recurrence: set "recurrence" to one of none/daily/weekly/monthly/yearly.
+              "every Monday" or "weekly" → weekly; "every day"/"daily" → daily; "monthly" → monthly;
+              "every year"/birthdays → yearly; a one-off → none. Set "start" to the FIRST upcoming
+              occurrence. Default "none" when there's no repeat.
 
             NO EVENT:
             - If the note has no schedulable event (chit-chat, "ok thanks", a random sentence),

@@ -9,6 +9,12 @@ data class CaptureState(
     val description: String = "",
     val isProcessing: Boolean = false,
     val error: String? = null,
+    /**
+     * Whether a Groq key is saved — drives the first-run onboarding prompt. Defaults to true
+     * (optimistic) so the onboarding card doesn't flash before the ViewModel reads the real
+     * value from the repository on init.
+     */
+    val hasApiKey: Boolean = true,
 ) : ViewState
 
 sealed interface CaptureAction : ViewAction {
@@ -32,8 +38,14 @@ sealed interface CaptureAction : ViewAction {
     ) : CaptureAction
 
     data object ErrorDismissed : CaptureAction
+
+    /** User tapped the onboarding prompt to add their Groq key. */
+    data object OpenApiKeySetup : CaptureAction
 }
 
 sealed interface CaptureEffect : ViewSideEffect {
     data object NavigateToReview : CaptureEffect
+
+    /** Jump to Settings so the user can paste their Groq key. */
+    data object NavigateToSettings : CaptureEffect
 }

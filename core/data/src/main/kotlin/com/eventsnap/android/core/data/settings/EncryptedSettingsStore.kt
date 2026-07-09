@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.eventsnap.android.core.model.ThemePreference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -16,6 +17,8 @@ private const val PREFS_NAME = "eventsnap_secure_settings"
 private const val KEY_GROQ = "groq_api_key"
 private const val KEY_CALENDAR = "default_calendar_id"
 private const val KEY_REMINDER = "default_reminder_minutes"
+private const val KEY_THEME = "theme_preference"
+private const val KEY_DYNAMIC_COLOR = "dynamic_color"
 private const val DEFAULT_REMINDER_MINUTES = 30
 
 /**
@@ -54,6 +57,19 @@ class EncryptedSettingsStore(
     private val _defaultReminderMinutes = MutableStateFlow(prefs.getInt(KEY_REMINDER, DEFAULT_REMINDER_MINUTES))
     override val defaultReminderMinutes = _defaultReminderMinutes.asStateFlow()
 
+    private val _themePreference =
+        MutableStateFlow(
+            prefs
+                .getString(KEY_THEME, null)
+                ?.let { name -> runCatching { ThemePreference.valueOf(name) }.getOrNull() }
+                ?: ThemePreference.SYSTEM,
+        )
+    override val themePreference = _themePreference.asStateFlow()
+
+    // Dynamic color (Material You) defaults on; only meaningful on Android 12+.
+    private val _dynamicColor = MutableStateFlow(prefs.getBoolean(KEY_DYNAMIC_COLOR, true))
+    override val dynamicColor = _dynamicColor.asStateFlow()
+
     override suspend fun setGroqApiKey(key: String) {
         prefs.edit().putString(KEY_GROQ, key).apply()
         _groqApiKey.value = key
@@ -67,5 +83,15 @@ class EncryptedSettingsStore(
     override suspend fun setDefaultReminderMinutes(minutes: Int) {
         prefs.edit().putInt(KEY_REMINDER, minutes).apply()
         _defaultReminderMinutes.value = minutes
+    }
+
+    override suspend fun setThemePreference(preference: ThemePreference) {
+        prefs.edit().putString(KEY_THEME, preference.name).apply()
+        _themePreference.value = preference
+    }
+
+    override suspend fun setDynamicColor(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, enabled).apply()
+        _dynamicColor.value = enabled
     }
 }

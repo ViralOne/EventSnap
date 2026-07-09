@@ -3,6 +3,7 @@ package com.eventsnap.android.feature.review
 import app.cash.turbine.test
 import com.eventsnap.android.core.model.CalendarEvent
 import com.eventsnap.android.core.model.TargetCalendar
+import com.eventsnap.android.feature.review.data.AddedBatch
 import com.eventsnap.android.feature.review.data.ReviewRepository
 import com.eventsnap.android.feature.review.mvi.ReviewAction
 import com.eventsnap.android.feature.review.mvi.ReviewEffect
@@ -12,6 +13,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 class ReviewViewModelTest {
@@ -21,22 +23,39 @@ class ReviewViewModelTest {
     private val event = CalendarEvent(title = "Dinner", startEpochMillis = 1_000L, endEpochMillis = 2_000L)
 
     @Test
-    fun `confirm writes events and emits ShowSaved then NavigateBack`() =
+    fun `confirm writes events and emits ShowSaved with the added batch`() =
         runTest {
             val repo = mock<ReviewRepository>()
+            val batch = AddedBatch(calendarEventIds = listOf(11L), historyIds = listOf(1L))
             whenever(repo.pendingEvents()).thenReturn(listOf(event))
             whenever(repo.writableCalendars()).thenReturn(
                 listOf(TargetCalendar(id = 7, displayName = "Personal", accountName = "me", isPrimary = true)),
             )
             whenever(repo.defaultCalendarId()).thenReturn(7)
+            whenever(repo.confirm(7, listOf(event))).thenReturn(batch)
 
             val vm = ReviewViewModel(repo)
             vm.setAction(ReviewAction.Load)
             vm.effects.test {
                 vm.setAction(ReviewAction.Confirm)
-                assertThat(awaitItem()).isEqualTo(ReviewEffect.ShowSaved(1))
-                assertThat(awaitItem()).isEqualTo(ReviewEffect.NavigateBackToCapture)
+                assertThat(awaitItem()).isEqualTo(ReviewEffect.ShowSaved(1, batch))
             }
+        }
+
+    @Test
+    fun `Undo delegates to the repository with the batch`() =
+        runTest {
+            val repo = mock<ReviewRepository>()
+            whenever(repo.pendingEvents()).thenReturn(emptyList())
+            whenever(repo.writableCalendars()).thenReturn(emptyList())
+            whenever(repo.defaultCalendarId()).thenReturn(null)
+
+            val batch = AddedBatch(calendarEventIds = listOf(11L), historyIds = listOf(1L))
+            val vm = ReviewViewModel(repo)
+            vm.setAction(ReviewAction.Undo(batch))
+            // give the launched coroutine a turn
+            vm.state.test { awaitItem() }
+            verify(repo).undo(batch)
         }
 
     @Test

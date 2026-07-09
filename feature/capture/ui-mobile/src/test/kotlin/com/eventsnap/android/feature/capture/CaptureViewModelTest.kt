@@ -9,6 +9,7 @@ import com.eventsnap.android.feature.capture.mvi.CaptureAction
 import com.eventsnap.android.feature.capture.mvi.CaptureEffect
 import com.eventsnap.android.testing.MainCoroutineRule
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
@@ -19,7 +20,7 @@ class CaptureViewModelTest {
     @get:Rule
     val mainCoroutineRule = MainCoroutineRule()
 
-    private val repository = mock<CaptureRepository>()
+    private val repository = mock<CaptureRepository> { whenever(it.hasApiKey).thenReturn(flowOf(true)) }
     private val holder = ExtractedEventsHolder()
 
     private fun viewModel() = CaptureViewModel(repository, holder)
@@ -49,6 +50,16 @@ class CaptureViewModelTest {
             vm.setAction(CaptureAction.SubmitText)
             vm.state.test {
                 assertThat(awaitItem().error).isNotNull()
+            }
+        }
+
+    @Test
+    fun `OpenApiKeySetup emits NavigateToSettings`() =
+        runTest {
+            val vm = viewModel()
+            vm.effects.test {
+                vm.setAction(CaptureAction.OpenApiKeySetup)
+                assertThat(awaitItem()).isEqualTo(CaptureEffect.NavigateToSettings)
             }
         }
 

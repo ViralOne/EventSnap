@@ -14,6 +14,12 @@ class CaptureViewModel(
     private val repository: CaptureRepository,
     private val extractedEventsHolder: ExtractedEventsHolder,
 ) : BaseViewModel<CaptureState, CaptureAction, CaptureEffect>(CaptureState()) {
+    init {
+        viewModelScope.launch {
+            repository.hasApiKey.collect { has -> setState { copy(hasApiKey = has) } }
+        }
+    }
+
     override suspend fun onAction(action: CaptureAction) {
         when (action) {
             is CaptureAction.DescriptionChanged -> setState { copy(description = action.value) }
@@ -25,6 +31,7 @@ class CaptureViewModel(
             is CaptureAction.SubmitImage -> extract(action.input)
             is CaptureAction.MediaError -> setState { copy(isProcessing = false, error = action.message) }
             is CaptureAction.ErrorDismissed -> setState { copy(error = null) }
+            is CaptureAction.OpenApiKeySetup -> setEffect(CaptureEffect.NavigateToSettings)
         }
     }
 
