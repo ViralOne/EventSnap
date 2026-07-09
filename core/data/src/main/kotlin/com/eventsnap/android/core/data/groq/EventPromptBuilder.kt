@@ -28,6 +28,10 @@ object EventPromptBuilder {
             Resolve every relative date/time against this. Pick the NEAREST FUTURE occurrence
             (if "Monday 9am" already passed this week, use next Monday). Never output a date in
             the past unless the user clearly states a past date.
+            A bare hour with no am/pm ("at 9", "meet 7") is 12-hour and AMBIGUOUS — pick whichever
+            of the two readings (e.g. 09:00 or 21:00) is the NEAREST FUTURE from the reference time.
+            Example: reference 20:00 today, "buy milk today 9" → today 21:00 (not tomorrow 09:00).
+            "today" always keeps today's date — never roll a "today" note to tomorrow.
 
             Respond with ONLY a JSON object of this exact shape (no markdown fences, no prose):
             {
@@ -58,8 +62,9 @@ object EventPromptBuilder {
             - TASK (isTask true): something the user must DO, an action item with a deadline but no
               real time slot — "buy a gift", "renew passport", "pay rent by the 1st", "call the plumber".
               Verbs of doing (buy, call, send, pay, submit, renew, fix, prepare) usually mean a task.
-            - When it's a task, set "isTask": true, use the DEADLINE as the date, and prefer
-              date-only + "allDay": true (a task has no clock slot unless the user gives a specific time).
+            - When it's a task, set "isTask": true and use the DEADLINE as the date. If the user gives
+              a specific time ("buy bananas today 9", "call mom at 6") KEEP that time: output a timed
+              "start"/"end" with "allDay": false. Only when NO time is given, use date-only + "allDay": true.
             - When unsure, treat it as an event (isTask false). Default is false.
 
             MULTIPLE EVENTS:
@@ -78,7 +83,11 @@ object EventPromptBuilder {
               given ("9 to 5", "3-4pm") use it. Meetings/calls default 30–60 min, meals ~1h.
 
             OTHER FIELDS:
-            - location: only if a place is mentioned; else null. Don't guess an address.
+            - location: if the note names ANY place — a venue, shop, or even a vague one like
+              "the mall", "office", "home", "grandma's" — put it in "location" (keep it short, as
+              written). Do NOT fold the place into the title ("buy milk from the mall" → title
+              "Buy milk", location "mall"). Only null when no place at all is mentioned. Never
+              invent or guess an address that wasn't stated.
             - reminderMinutesBefore: 30 unless the user asks otherwise ("remind me 1h before"→60,
               "the day before"→1440). Use null only if they say no reminder.
             - Recurrence: set "recurrence" to one of none/daily/weekly/monthly/yearly.

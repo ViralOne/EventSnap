@@ -179,7 +179,8 @@ private fun EventCard(
             }
 
             // Task checkbox: mark a to-do (something to DO) vs an event (something to attend).
-            // Pre-checked from the AI's guess; the user confirms or corrects it. A task is always all-day.
+            // Pre-checked from the AI's guess; the user confirms or corrects it. This is only a
+            // classification — it doesn't change the time. Use the All-day switch for that.
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(
                     checked = event.isTask,
@@ -189,23 +190,21 @@ private fun EventCard(
                 Column(modifier = Modifier.padding(start = Spacing.xs)) {
                     Text("This is a task", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        "A to-do with a deadline — saved as an all-day reminder",
+                        "A to-do with a deadline (turn off All-day to give it a specific time)",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
-            // All-day switch — hidden for tasks (a task is inherently all-day).
-            if (!event.isTask) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("All-day", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = event.allDay,
-                        onCheckedChange = { onAction(ReviewAction.AllDayToggled(index, it)) },
-                        modifier = Modifier.testTag("allday_switch_$index"),
-                    )
-                }
+            // All-day switch — controls whether the event/task has a clock time, for both kinds.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("All-day", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = event.allDay,
+                    onCheckedChange = { onAction(ReviewAction.AllDayToggled(index, it)) },
+                    modifier = Modifier.testTag("allday_switch_$index"),
+                )
             }
 
             // Start / end date+time editors

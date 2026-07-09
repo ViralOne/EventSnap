@@ -16,14 +16,17 @@ class ReviewViewModel(
     override suspend fun onAction(action: ReviewAction) {
         when (action) {
             is ReviewAction.Load -> load()
-            is ReviewAction.RemoveEvent ->
+            is ReviewAction.RemoveEvent -> {
+                // Drop the event and its aligned selection flag together.
                 setState {
-                    // Drop the event and its aligned selection flag together.
                     copy(
                         events = events.filterIndexed { i, _ -> i != action.index }.toImmutableList(),
                         selected = selected.filterIndexed { i, _ -> i != action.index }.toImmutableList(),
                     )
                 }
+                // Nothing left to review → there's no screen to show, so go back to Capture.
+                if (state.value.events.isEmpty()) setEffect(ReviewEffect.NavigateBackToCapture)
+            }
             is ReviewAction.SelectionToggled ->
                 setState {
                     copy(selected = selected.mapIndexed { i, s -> if (i == action.index) action.selected else s }.toImmutableList())
@@ -57,10 +60,9 @@ class ReviewViewModel(
                 }
             is ReviewAction.AllDayToggled -> mutateEvent(action.index) { it.copy(allDay = action.allDay) }
             is ReviewAction.TaskToggled ->
-                mutateEvent(action.index) { event ->
-                    // A task is a to-do with a deadline, not a time slot, so it's always all-day.
-                    event.copy(isTask = action.isTask, allDay = if (action.isTask) true else event.allDay)
-                }
+                // "Task" is just a classification (to-do vs event); it's independent of all-day, so
+                // toggling it never touches the time. The user controls all-day with its own switch.
+                mutateEvent(action.index) { it.copy(isTask = action.isTask) }
             is ReviewAction.ReminderChanged -> mutateEvent(action.index) { it.copy(reminderMinutesBefore = action.minutesBefore) }
             is ReviewAction.RecurrenceChanged -> mutateEvent(action.index) { it.copy(recurrence = action.recurrence) }
             else -> Unit

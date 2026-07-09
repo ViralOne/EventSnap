@@ -99,8 +99,9 @@ internal class CaptureRepositoryImpl(
         val end = dto.end?.let(::parseFlexible)
         val isTask = dto.isTask == true
         // A date-only value (no clock time) means an all-day event, even if the model didn't set the flag.
-        // Tasks are to-dos with a deadline, not a time slot, so they're all-day too.
-        val allDay = dto.allDay == true || start.dateOnly || isTask
+        // A task with a specific time ("buy bananas today 9") is a timed reminder — keep its clock slot;
+        // only date-only tasks become all-day (via start.dateOnly). Don't force all-day just because it's a task.
+        val allDay = dto.allDay == true || start.dateOnly
         val zone = ZoneId.systemDefault()
         val startMillis =
             start.dateTime
