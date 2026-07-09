@@ -67,7 +67,9 @@ fun CaptureScreenContent(
     onStartVoice: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    // imePadding on the OUTER column shrinks the whole layout above the keyboard, so the input
+    // bar docks right on top of it (instead of leaving a keyboard-height gap inside the bar).
+    Column(modifier = modifier.fillMaxSize().imePadding()) {
         Column(
             modifier =
                 Modifier
@@ -302,9 +304,8 @@ private fun DockedInputBar(
                 Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .imePadding()
                     .padding(Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Bottom,
         ) {
             TextField(
                 value = value,
@@ -316,7 +317,9 @@ private fun DockedInputBar(
                         .testTag("capture_description_field"),
                 placeholder = { Text("…or describe an event") },
                 shape = RoundedCornerShape(28.dp),
-                singleLine = true,
+                // Grows from 1 line up to 5 as the user types a longer description, then scrolls.
+                minLines = 1,
+                maxLines = 5,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { onSubmit() }),
                 colors =

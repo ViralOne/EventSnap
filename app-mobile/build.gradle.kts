@@ -11,8 +11,8 @@ android {
 
     defaultConfig {
         applicationId = "com.eventsnap.android"
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "0.1.1"
     }
 
     buildTypes {
