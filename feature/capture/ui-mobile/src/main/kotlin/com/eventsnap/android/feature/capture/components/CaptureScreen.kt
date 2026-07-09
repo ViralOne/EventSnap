@@ -33,6 +33,7 @@ fun CaptureScreen(
     sharedText: String? = null,
     sharedMediaUri: Uri? = null,
     launchAction: String? = null,
+    onLaunchActionConsumed: () -> Unit = {},
 ) {
     val viewModel: CaptureViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -108,8 +109,12 @@ fun CaptureScreen(
     }
 
     // A shortcut / widget / QS tile can ask us to jump straight into voice or camera on launch.
+    // Consume it immediately (one-shot) so returning to Capture from another tab doesn't re-fire.
     LaunchedEffect(launchAction) {
-        autoStart(launchAction, onVoice = ::startVoice, onPhoto = ::takePhoto)
+        if (launchAction != null) {
+            autoStart(launchAction, onVoice = ::startVoice, onPhoto = ::takePhoto)
+            onLaunchActionConsumed()
+        }
     }
 
     CaptureScreenContent(

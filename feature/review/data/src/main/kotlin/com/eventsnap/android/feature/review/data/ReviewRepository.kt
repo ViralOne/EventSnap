@@ -1,5 +1,6 @@
 package com.eventsnap.android.feature.review.data
 
+import com.eventsnap.android.core.model.AddedBatch
 import com.eventsnap.android.core.model.CalendarEvent
 import com.eventsnap.android.core.model.TargetCalendar
 
@@ -24,9 +25,3 @@ interface ReviewRepository {
     /** Reverses a [batch] created by [confirm]: deletes the calendar events and history rows. */
     suspend fun undo(batch: AddedBatch)
 }
-
-/** The calendar event ids + history row ids created by one [ReviewRepository.confirm] call. */
-data class AddedBatch(
-    val calendarEventIds: List<Long>,
-    val historyIds: List<Long>,
-)

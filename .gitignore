@@ -55,3 +55,11 @@ fabric.properties
 # Generated keystores (debug keystores are auto-generated; release keystores must never be in repo)
 *.jks
 *.keystore
+
+# Signing secrets — NEVER commit these to a public repo
+.env
+*.env
+release-keystore.b64
+
+# Temp files from keystore generation (plaintext secrets)
+.es_*.tmp

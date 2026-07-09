@@ -2,10 +2,14 @@ package com.eventsnap.android.feature.review
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.eventsnap.android.core.model.AddedBatch
 import com.eventsnap.android.feature.review.components.ReviewScreen
 
-fun EntryProviderScope<NavKey>.reviewEntry(onDone: () -> Unit) {
+fun EntryProviderScope<NavKey>.reviewEntry(
+    onDone: () -> Unit,
+    onEventsAdded: (count: Int, batch: AddedBatch) -> Unit,
+) {
     entry<ReviewRoute> {
-        ReviewScreen(onDone = onDone)
+        ReviewScreen(onDone = onDone, onEventsAdded = onEventsAdded)
     }
 }

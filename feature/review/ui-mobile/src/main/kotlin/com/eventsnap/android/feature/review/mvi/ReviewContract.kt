@@ -3,20 +3,26 @@ package com.eventsnap.android.feature.review.mvi
 import com.eventsnap.android.core.ViewAction
 import com.eventsnap.android.core.ViewSideEffect
 import com.eventsnap.android.core.ViewState
+import com.eventsnap.android.core.model.AddedBatch
 import com.eventsnap.android.core.model.CalendarEvent
 import com.eventsnap.android.core.model.Recurrence
 import com.eventsnap.android.core.model.TargetCalendar
-import com.eventsnap.android.feature.review.data.AddedBatch
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
 data class ReviewState(
     val events: ImmutableList<CalendarEvent> = persistentListOf(),
+    /** One flag per event (aligned by index): whether it will be added on confirm. */
+    val selected: ImmutableList<Boolean> = persistentListOf(),
     val calendars: ImmutableList<TargetCalendar> = persistentListOf(),
     val selectedCalendarId: Long? = null,
     val isSaving: Boolean = false,
     val error: String? = null,
-) : ViewState
+) : ViewState {
+    /** The events the user has ticked to add. */
+    val checkedEvents: List<CalendarEvent>
+        get() = events.filterIndexed { i, _ -> selected.getOrElse(i) { true } }
+}
 
 sealed interface ReviewAction : ViewAction {
     data object Load : ReviewAction
@@ -65,6 +71,12 @@ sealed interface ReviewAction : ViewAction {
 
     data class RemoveEvent(
         val index: Int,
+    ) : ReviewAction
+
+    /** Tick/untick whether an extracted event will be added on confirm. */
+    data class SelectionToggled(
+        val index: Int,
+        val selected: Boolean,
     ) : ReviewAction
 
     data class CalendarSelected(

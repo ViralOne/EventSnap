@@ -11,14 +11,40 @@ android {
 
     defaultConfig {
         applicationId = "com.eventsnap.android"
-        versionCode = 5
-        versionName = "0.4.0"
+        versionCode = 6
+        versionName = "0.5.0"
+    }
+
+    // A stable release keystore, provided via env vars in CI (from encrypted GitHub Secrets — the
+    // keystore file is NEVER committed to this public repo). When the env vars are absent (local
+    // builds, contributors, PRs), release falls back to the debug key so everything still builds.
+    val releaseStorePath: String? = System.getenv("SIGNING_KEYSTORE_PATH")
+    val hasReleaseSigning = !releaseStorePath.isNullOrBlank() && file(releaseStorePath).exists()
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStorePath)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: shrink + obfuscate + strip unused resources for a much smaller APK.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Use the stable release key when available (CI), else the debug key so local builds
+            // still produce an installable, sideloadable APK.
+            signingConfig =
+                if (hasReleaseSigning) {
+                    signingConfigs.getByName("release")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
         }
     }
 }

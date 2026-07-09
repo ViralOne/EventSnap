@@ -80,11 +80,9 @@ fun ReviewScreenContent(
     state: ReviewState,
     onAction: (ReviewAction) -> Unit,
     modifier: Modifier = Modifier,
-    snackbarHost: @Composable () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier,
-        snackbarHost = snackbarHost,
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(Spacing.md)) {
             Text("Review events", style = MaterialTheme.typography.titleLarge)
@@ -94,7 +92,14 @@ fun ReviewScreenContent(
                 verticalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 itemsIndexed(state.events, key = { index, _ -> index }) { index, event ->
-                    EventCard(index = index, event = event, onAction = onAction)
+                    EventCard(
+                        index = index,
+                        event = event,
+                        // Selection checkbox only matters when there's more than one event to choose from.
+                        showSelection = state.events.size > 1,
+                        selected = state.selected.getOrElse(index) { true },
+                        onAction = onAction,
+                    )
                 }
 
                 if (state.calendars.isNotEmpty()) {
@@ -125,12 +130,19 @@ fun ReviewScreenContent(
                 )
             }
 
+            val checkedCount = state.checkedEvents.size
             Button(
                 onClick = { onAction(ReviewAction.Confirm) },
-                enabled = !state.isSaving && state.events.isNotEmpty(),
+                enabled = !state.isSaving && checkedCount > 0,
                 modifier = Modifier.fillMaxWidth().testTag("review_confirm").padding(top = Spacing.sm),
             ) {
-                Text(if (state.isSaving) "Adding…" else "Add to calendar")
+                val label =
+                    when {
+                        state.isSaving -> "Adding…"
+                        checkedCount > 1 -> "Add $checkedCount to calendar"
+                        else -> "Add to calendar"
+                    }
+                Text(label)
             }
         }
     }
@@ -140,11 +152,21 @@ fun ReviewScreenContent(
 private fun EventCard(
     index: Int,
     event: CalendarEvent,
+    showSelection: Boolean,
+    selected: Boolean,
     onAction: (ReviewAction) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth().testTag("event_card_$index")) {
         Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // When several events were extracted, let the user pick which ones to add.
+                if (showSelection) {
+                    Checkbox(
+                        checked = selected,
+                        onCheckedChange = { onAction(ReviewAction.SelectionToggled(index, it)) },
+                        modifier = Modifier.testTag("select_checkbox_$index"),
+                    )
+                }
                 OutlinedTextField(
                     value = event.title,
                     onValueChange = { onAction(ReviewAction.TitleChanged(index, it)) },

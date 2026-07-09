@@ -5,6 +5,7 @@ import com.eventsnap.android.core.data.handoff.ExtractedEventsHolder
 import com.eventsnap.android.core.data.history.EventHistoryDao
 import com.eventsnap.android.core.data.history.EventHistoryEntity
 import com.eventsnap.android.core.data.settings.SettingsStore
+import com.eventsnap.android.core.model.AddedBatch
 import com.eventsnap.android.core.model.CalendarEvent
 import com.eventsnap.android.core.model.TargetCalendar
 import kotlinx.coroutines.flow.first

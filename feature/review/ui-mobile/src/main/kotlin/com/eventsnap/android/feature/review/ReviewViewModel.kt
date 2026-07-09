@@ -18,7 +18,15 @@ class ReviewViewModel(
             is ReviewAction.Load -> load()
             is ReviewAction.RemoveEvent ->
                 setState {
-                    copy(events = events.filterIndexed { i, _ -> i != action.index }.toImmutableList())
+                    // Drop the event and its aligned selection flag together.
+                    copy(
+                        events = events.filterIndexed { i, _ -> i != action.index }.toImmutableList(),
+                        selected = selected.filterIndexed { i, _ -> i != action.index }.toImmutableList(),
+                    )
+                }
+            is ReviewAction.SelectionToggled ->
+                setState {
+                    copy(selected = selected.mapIndexed { i, s -> if (i == action.index) action.selected else s }.toImmutableList())
                 }
             is ReviewAction.CalendarSelected -> setState { copy(selectedCalendarId = action.calendarId) }
             is ReviewAction.ErrorDismissed -> setState { copy(error = null) }
@@ -66,7 +74,13 @@ class ReviewViewModel(
     private fun load() {
         val pending = repository.pendingEvents()
         // Full reset — clears any events/selection/error left over from a prior visit.
-        setState { ReviewState(events = pending.toImmutableList()) }
+        // Everything starts checked; the user can untick any they don't want.
+        setState {
+            ReviewState(
+                events = pending.toImmutableList(),
+                selected = pending.map { true }.toImmutableList(),
+            )
+        }
         viewModelScope.launch {
             runCatching {
                 val calendars = repository.writableCalendars()
@@ -99,18 +113,19 @@ class ReviewViewModel(
             setState { copy(error = "Pick a calendar first.") }
             return
         }
-        if (current.events.isEmpty()) {
-            setState { copy(error = "Nothing to add.") }
+        val toAdd = current.checkedEvents
+        if (toAdd.isEmpty()) {
+            setState { copy(error = "Select at least one event to add.") }
             return
         }
         setState { copy(isSaving = true, error = null) }
         viewModelScope.launch {
-            runCatching { repository.confirm(calendarId, current.events) }
+            runCatching { repository.confirm(calendarId, toAdd) }
                 .onSuccess { batch ->
                     setState { copy(isSaving = false) }
                     // The screen shows a "saved · Undo" snackbar and navigates back when it resolves,
                     // so we don't emit a navigate effect here.
-                    setEffect(ReviewEffect.ShowSaved(current.events.size, batch))
+                    setEffect(ReviewEffect.ShowSaved(toAdd.size, batch))
                 }.onFailure { throwable ->
                     setState { copy(isSaving = false, error = throwable.message ?: "Could not add the events.") }
                 }

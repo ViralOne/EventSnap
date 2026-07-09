@@ -1,9 +1,9 @@
 package com.eventsnap.android.feature.review
 
 import app.cash.turbine.test
+import com.eventsnap.android.core.model.AddedBatch
 import com.eventsnap.android.core.model.CalendarEvent
 import com.eventsnap.android.core.model.TargetCalendar
-import com.eventsnap.android.feature.review.data.AddedBatch
 import com.eventsnap.android.feature.review.data.ReviewRepository
 import com.eventsnap.android.feature.review.mvi.ReviewAction
 import com.eventsnap.android.feature.review.mvi.ReviewEffect
@@ -21,6 +21,28 @@ class ReviewViewModelTest {
     val mainCoroutineRule = MainCoroutineRule()
 
     private val event = CalendarEvent(title = "Dinner", startEpochMillis = 1_000L, endEpochMillis = 2_000L)
+
+    private val second = CalendarEvent(title = "Lunch", startEpochMillis = 5_000L, endEpochMillis = 6_000L)
+
+    @Test
+    fun `confirm only writes the events still selected`() =
+        runTest {
+            val repo = mock<ReviewRepository>()
+            val batch = AddedBatch(calendarEventIds = listOf(11L), historyIds = listOf(1L))
+            whenever(repo.pendingEvents()).thenReturn(listOf(event, second))
+            whenever(repo.writableCalendars()).thenReturn(
+                listOf(TargetCalendar(id = 7, displayName = "Personal", accountName = "me", isPrimary = true)),
+            )
+            whenever(repo.defaultCalendarId()).thenReturn(7)
+            whenever(repo.confirm(7, listOf(second))).thenReturn(batch)
+
+            val vm = ReviewViewModel(repo)
+            vm.setAction(ReviewAction.Load)
+            vm.setAction(ReviewAction.SelectionToggled(0, selected = false)) // untick the first
+            vm.setAction(ReviewAction.Confirm)
+
+            verify(repo).confirm(7, listOf(second))
+        }
 
     @Test
     fun `confirm writes events and emits ShowSaved with the added batch`() =

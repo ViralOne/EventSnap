@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget colors. Fallback (pre-Android-12) values live here; values-v31 / -night-v31 override
+     them with Material You dynamic system colors that follow the user's wallpaper. -->
+<resources>
+    <color name="widget_bar_background">#2A2A2E</color>
+    <color name="widget_on_surface">#CFCFCF</color>
+    <color name="widget_accent">#4C5C92</color>
+    <color name="widget_on_accent">#FFFFFF</color>
+</resources>

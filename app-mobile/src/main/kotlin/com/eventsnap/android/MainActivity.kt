@@ -45,6 +45,9 @@ class MainActivity : ComponentActivity() {
                         sharedText = sharedText,
                         sharedMediaUri = sharedMediaUri,
                         launchAction = launchAction,
+                        // One-shot: clear once the capture screen has acted on it, so switching tabs
+                        // and returning to Capture doesn't re-trigger voice/camera.
+                        onLaunchActionConsumed = { launchAction = null },
                     )
                 }
             }
