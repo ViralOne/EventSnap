@@ -83,11 +83,15 @@ object EventPromptBuilder {
               given ("9 to 5", "3-4pm") use it. Meetings/calls default 30–60 min, meals ~1h.
 
             OTHER FIELDS:
-            - location: if the note names ANY place — a venue, shop, or even a vague one like
-              "the mall", "office", "home", "grandma's" — put it in "location" (keep it short, as
-              written). Do NOT fold the place into the title ("buy milk from the mall" → title
-              "Buy milk", location "mall"). Only null when no place at all is mentioned. Never
-              invent or guess an address that wasn't stated.
+            - location: if the note mentions ANY place, extract it into "location" with ALL
+              qualifying context (neighborhood, city, area) so it's searchable on a map.
+              "the mall downtown" → location "mall downtown", NOT just "mall".
+              "the restaurant on 5th Avenue" → location "5th Avenue".
+              "the Starbucks in Times Square" → location "Starbucks, Times Square".
+              Do NOT fold the place into the title — the title is about the activity, not the place
+              ("go wash the car at the downtown mall" → title "Wash the car", location
+              "mall downtown"). Only null when no place at all is mentioned. Never invent or guess
+              an address/city that wasn't stated or clearly implied.
             - reminderMinutesBefore: 30 unless the user asks otherwise ("remind me 1h before"→60,
               "the day before"→1440). Use null only if they say no reminder.
             - Recurrence: set "recurrence" to one of none/daily/weekly/monthly/yearly.

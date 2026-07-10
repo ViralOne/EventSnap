@@ -2,11 +2,15 @@ package com.eventsnap.android.feature.review.data
 
 import com.eventsnap.android.core.model.AddedBatch
 import com.eventsnap.android.core.model.CalendarEvent
+import com.eventsnap.android.core.model.PlaceSuggestion
 import com.eventsnap.android.core.model.TargetCalendar
 
 interface ReviewRepository {
     /** Events handed over from the capture step (consumed once). */
     fun pendingEvents(): List<CalendarEvent>
+
+    /** Keyless place autocomplete for the location field; empty on blank/short queries or errors. */
+    suspend fun searchPlaces(query: String): List<PlaceSuggestion>
 
     suspend fun writableCalendars(): List<TargetCalendar>
 

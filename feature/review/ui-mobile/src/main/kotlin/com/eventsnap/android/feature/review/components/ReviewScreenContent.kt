@@ -47,10 +47,12 @@ import com.eventsnap.android.core.designsystem.theme.EventsnapPreviews
 import com.eventsnap.android.core.designsystem.theme.EventsnapTheme
 import com.eventsnap.android.core.designsystem.theme.Spacing
 import com.eventsnap.android.core.model.CalendarEvent
+import com.eventsnap.android.core.model.PlaceSuggestion
 import com.eventsnap.android.core.model.Recurrence
 import com.eventsnap.android.core.model.TargetCalendar
 import com.eventsnap.android.feature.review.mvi.ReviewAction
 import com.eventsnap.android.feature.review.mvi.ReviewState
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import java.text.DateFormat
 import java.util.Calendar
@@ -98,6 +100,9 @@ fun ReviewScreenContent(
                         // Selection checkbox only matters when there's more than one event to choose from.
                         showSelection = state.events.size > 1,
                         selected = state.selected.getOrElse(index) { true },
+                        // Show the place dropdown only under the card the user is actively typing in.
+                        locationSuggestions =
+                            if (state.locationQueryIndex == index) state.locationSuggestions else persistentListOf(),
                         onAction = onAction,
                     )
                 }
@@ -154,6 +159,7 @@ private fun EventCard(
     event: CalendarEvent,
     showSelection: Boolean,
     selected: Boolean,
+    locationSuggestions: ImmutableList<PlaceSuggestion>,
     onAction: (ReviewAction) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth().testTag("event_card_$index")) {
@@ -221,12 +227,37 @@ private fun EventCard(
                 onChanged = { onAction(ReviewAction.EndChanged(index, it)) },
             )
 
-            OutlinedTextField(
-                value = event.location.orEmpty(),
-                onValueChange = { onAction(ReviewAction.LocationChanged(index, it)) },
-                label = { Text("Location") },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            // Location field with keyless place autocomplete (Photon/OpenStreetMap).
+            Box {
+                OutlinedTextField(
+                    value = event.location.orEmpty(),
+                    onValueChange = { onAction(ReviewAction.LocationChanged(index, it)) },
+                    label = { Text("Location") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                DropdownMenu(
+                    expanded = locationSuggestions.isNotEmpty(),
+                    onDismissRequest = { onAction(ReviewAction.LocationSearchDismissed) },
+                ) {
+                    locationSuggestions.forEach { suggestion ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(suggestion.primary, style = MaterialTheme.typography.bodyMedium)
+                                    if (suggestion.secondary.isNotBlank()) {
+                                        Text(
+                                            suggestion.secondary,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = { onAction(ReviewAction.LocationSuggestionPicked(index, suggestion)) },
+                        )
+                    }
+                }
+            }
 
             ReminderDropdown(
                 selected = event.reminderMinutesBefore,

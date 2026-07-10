@@ -5,6 +5,7 @@ import com.eventsnap.android.core.ViewSideEffect
 import com.eventsnap.android.core.ViewState
 import com.eventsnap.android.core.model.AddedBatch
 import com.eventsnap.android.core.model.CalendarEvent
+import com.eventsnap.android.core.model.PlaceSuggestion
 import com.eventsnap.android.core.model.Recurrence
 import com.eventsnap.android.core.model.TargetCalendar
 import kotlinx.collections.immutable.ImmutableList
@@ -18,6 +19,10 @@ data class ReviewState(
     val selectedCalendarId: Long? = null,
     val isSaving: Boolean = false,
     val error: String? = null,
+    /** Index of the event whose Location field is being typed in (drives which card shows the dropdown). */
+    val locationQueryIndex: Int? = null,
+    /** Place suggestions for the currently-edited location field. */
+    val locationSuggestions: ImmutableList<PlaceSuggestion> = persistentListOf(),
 ) : ViewState {
     /** The events the user has ticked to add. */
     val checkedEvents: List<CalendarEvent>
@@ -36,6 +41,15 @@ sealed interface ReviewAction : ViewAction {
         val index: Int,
         val value: String,
     ) : ReviewAction
+
+    /** User tapped a place suggestion; store its clean address and close the dropdown. */
+    data class LocationSuggestionPicked(
+        val index: Int,
+        val suggestion: PlaceSuggestion,
+    ) : ReviewAction
+
+    /** Location field lost focus / dropdown dismissed — clear suggestions. */
+    data object LocationSearchDismissed : ReviewAction
 
     /** New start instant (epoch millis) picked from the date/time pickers. */
     data class StartChanged(

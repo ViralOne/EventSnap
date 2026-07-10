@@ -7,12 +7,18 @@ import com.eventsnap.android.feature.review.data.ReviewRepository
 import com.eventsnap.android.feature.review.mvi.ReviewAction
 import com.eventsnap.android.feature.review.mvi.ReviewEffect
 import com.eventsnap.android.feature.review.mvi.ReviewState
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class ReviewViewModel(
     private val repository: ReviewRepository,
 ) : BaseViewModel<ReviewState, ReviewAction, ReviewEffect>(ReviewState()) {
+    /** In-flight place-search coroutine; cancelled on each new keystroke so only the last query runs. */
+    private var placeSearchJob: Job? = null
+
     override suspend fun onAction(action: ReviewAction) {
         when (action) {
             is ReviewAction.Load -> load()
@@ -39,15 +45,45 @@ class ReviewViewModel(
                     runCatching { repository.undo(action.batch) }
                         .onFailure { throwable -> setState { copy(error = throwable.message ?: "Could not undo.") } }
                 }
+            is ReviewAction.LocationSuggestionPicked -> {
+                placeSearchJob?.cancel()
+                mutateEvent(action.index) { it.copy(location = action.suggestion.storedValue) }
+                setState { copy(locationQueryIndex = null, locationSuggestions = persistentListOf()) }
+            }
+            is ReviewAction.LocationSearchDismissed -> {
+                placeSearchJob?.cancel()
+                setState { copy(locationQueryIndex = null, locationSuggestions = persistentListOf()) }
+            }
             else -> onFieldEdit(action)
         }
+    }
+
+    /** Debounced keyless place lookup for the location field, cancelling any prior in-flight query. */
+    private fun searchPlaces(
+        index: Int,
+        query: String,
+    ) {
+        placeSearchJob?.cancel()
+        if (query.isBlank()) {
+            setState { copy(locationQueryIndex = null, locationSuggestions = persistentListOf()) }
+            return
+        }
+        placeSearchJob =
+            viewModelScope.launch {
+                delay(PLACE_SEARCH_DEBOUNCE_MS)
+                val results = runCatching { repository.searchPlaces(query) }.getOrDefault(emptyList())
+                setState { copy(locationQueryIndex = index, locationSuggestions = results.toImmutableList()) }
+            }
     }
 
     /** Per-event field edits from the review cards; kept separate to keep [onAction] simple. */
     private fun onFieldEdit(action: ReviewAction) {
         when (action) {
             is ReviewAction.TitleChanged -> mutateEvent(action.index) { it.copy(title = action.value) }
-            is ReviewAction.LocationChanged -> mutateEvent(action.index) { it.copy(location = action.value) }
+            is ReviewAction.LocationChanged -> {
+                mutateEvent(action.index) { it.copy(location = action.value) }
+                searchPlaces(action.index, action.value)
+            }
             is ReviewAction.StartChanged ->
                 mutateEvent(action.index) { event ->
                     // Keep the duration stable when the start moves; never let end precede start.
@@ -97,6 +133,12 @@ class ReviewViewModel(
                 setState { copy(error = throwable.message ?: "Could not read your calendars.") }
             }
         }
+        // Auto-search places for the first event that has a location extracted by the AI. This
+        // populates the suggestions dropdown immediately so the user can refine without typing.
+        val firstWithLocation = pending.indexOfFirst { !it.location.isNullOrBlank() }
+        if (firstWithLocation >= 0) {
+            searchPlaces(firstWithLocation, pending[firstWithLocation].location.orEmpty())
+        }
     }
 
     private fun mutateEvent(
@@ -132,5 +174,10 @@ class ReviewViewModel(
                     setState { copy(isSaving = false, error = throwable.message ?: "Could not add the events.") }
                 }
         }
+    }
+
+    private companion object {
+        // Wait for a typing pause before hitting the geocoder — keeps requests down and the UI calm.
+        const val PLACE_SEARCH_DEBOUNCE_MS = 350L
     }
 }

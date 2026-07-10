@@ -12,6 +12,7 @@ val reviewDataModule =
                 calendarWriter = get(),
                 settingsStore = get(),
                 historyDao = get(),
+                placeSearchRepository = get(),
             )
         }
     }

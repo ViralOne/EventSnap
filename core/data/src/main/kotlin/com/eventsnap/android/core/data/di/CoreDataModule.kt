@@ -9,6 +9,10 @@ import com.eventsnap.android.core.data.groq.GroqApi
 import com.eventsnap.android.core.data.handoff.ExtractedEventsHolder
 import com.eventsnap.android.core.data.history.EventSnapDatabase
 import com.eventsnap.android.core.data.network.EnvironmentBaseUrlInterceptor
+import com.eventsnap.android.core.data.places.DeviceLocationProvider
+import com.eventsnap.android.core.data.places.PhotonApi
+import com.eventsnap.android.core.data.places.PlaceSearchRepository
+import com.eventsnap.android.core.data.places.PlaceSearchRepositoryImpl
 import com.eventsnap.android.core.data.settings.EncryptedSettingsStore
 import com.eventsnap.android.core.data.settings.SettingsStore
 import com.squareup.moshi.Moshi
@@ -58,6 +62,26 @@ val coreDataModule =
         }
 
         single<GroqApi> { get<Retrofit>().create(GroqApi::class.java) }
+
+        // Photon (keyless OpenStreetMap geocoder) gets its own client + Retrofit: it has a fixed
+        // public host, so it must bypass the EnvironmentBaseUrlInterceptor that rewrites Groq's host.
+        single<PhotonApi> {
+            val logging =
+                HttpLoggingInterceptor().apply {
+                    level = if (BuildConfig.IS_QA) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
+                }
+            val client = OkHttpClient.Builder().addInterceptor(logging).build()
+            Retrofit
+                .Builder()
+                .baseUrl("https://photon.komoot.io/")
+                .client(client)
+                .addConverterFactory(MoshiConverterFactory.create(get()))
+                .build()
+                .create(PhotonApi::class.java)
+        }
+
+        single { DeviceLocationProvider(androidContext()) }
+        single<PlaceSearchRepository> { PlaceSearchRepositoryImpl(get(), get()) }
 
         single<SettingsStore> { EncryptedSettingsStore(androidContext()) }
 
