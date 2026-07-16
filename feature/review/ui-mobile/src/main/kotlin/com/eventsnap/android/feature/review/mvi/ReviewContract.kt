@@ -105,6 +105,9 @@ sealed interface ReviewAction : ViewAction {
     ) : ReviewAction
 
     data object ErrorDismissed : ReviewAction
+
+    /** Leave the review screen without adding anything (e.g. the empty/expired state). */
+    data object Dismiss : ReviewAction
 }
 
 sealed interface ReviewEffect : ViewSideEffect {

@@ -27,6 +27,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.Eventsnap"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

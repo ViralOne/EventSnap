@@ -1,7 +1,9 @@
 package com.eventsnap.android.navigation
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -22,6 +24,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
@@ -51,6 +54,8 @@ fun EventsnapNavHost(
     val snackbarHostState = remember { SnackbarHostState() }
     // The just-added batch, awaiting its "Added · Undo" snackbar. Set when Review reports a save.
     var pendingUndo by remember { mutableStateOf<PendingUndo?>(null) }
+    // Set when the up-front calendar permission request is denied, to trigger the recovery snackbar.
+    var calendarPermissionDenied by remember { mutableStateOf(false) }
     val calendarWriter = koinInject<CalendarWriter>()
     val historyDao = koinInject<EventHistoryDao>()
 
@@ -73,16 +78,43 @@ fun EventsnapNavHost(
     }
 
     // Request calendar permissions up-front so the review step can read/write calendars.
+    // If the user denies, the calendar features are silently broken, so surface a recovery
+    // snackbar that deep-links to the app's settings page where the grant can be flipped on.
     val permissionLauncher =
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions(),
-        ) { /* result handled implicitly — features degrade to an error if denied */ }
+        ) { grants ->
+            val calendarGranted =
+                grants[Manifest.permission.READ_CALENDAR] == true &&
+                    grants[Manifest.permission.WRITE_CALENDAR] == true
+            if (!calendarGranted) calendarPermissionDenied = true
+        }
 
     LaunchedEffect(Unit) {
         val needed =
             listOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
                 .filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
         if (needed.isNotEmpty()) permissionLauncher.launch(needed.toTypedArray())
+    }
+
+    // Denied-calendar recovery: offer a one-tap jump to the app's system settings.
+    LaunchedEffect(calendarPermissionDenied) {
+        if (!calendarPermissionDenied) return@LaunchedEffect
+        val result =
+            snackbarHostState.showSnackbar(
+                message = "Calendar access is off — EventSnap can't add events without it.",
+                actionLabel = "Settings",
+                withDismissAction = true,
+                duration = SnackbarDuration.Long,
+            )
+        if (result == SnackbarResult.ActionPerformed) {
+            val intent =
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    .setData("package:${context.packageName}".toUri())
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching { context.startActivity(intent) }
+        }
+        calendarPermissionDenied = false
     }
 
     val currentTabRoute =

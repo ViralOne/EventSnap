@@ -319,6 +319,8 @@ private fun ActionRow(
                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center,
         ) {
+            // The leading icon is decorative — the row's title/subtitle text carries the label,
+            // and the trailing arrow announces it as an actionable row for TalkBack.
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
         }
         Column(

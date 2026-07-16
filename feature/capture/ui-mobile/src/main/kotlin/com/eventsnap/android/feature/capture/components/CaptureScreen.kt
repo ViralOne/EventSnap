@@ -72,16 +72,24 @@ fun CaptureScreen(
         ) { uri -> submitUri(uri) }
 
     // Camera — writes to a temp file exposed via FileProvider, then we read it back.
-    val cameraImageUri =
+    // The captured photo can be sensitive, so we delete it from cache as soon as it's been read.
+    val cameraTempFile =
         remember {
             val dir = File(context.cacheDir, "captures").apply { mkdirs() }
-            val file = File(dir, "capture.jpg")
-            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            File(dir, "capture.jpg")
+        }
+    val cameraImageUri =
+        remember {
+            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", cameraTempFile)
         }
     val cameraLauncher =
         rememberLauncherForActivityResult(
             ActivityResultContracts.TakePicture(),
-        ) { success -> if (success) submitUri(cameraImageUri) }
+        ) { success ->
+            if (success) submitUri(cameraImageUri)
+            // readAsJpeg reads the bytes synchronously in submitUri, so the file is safe to remove now.
+            cameraTempFile.delete()
+        }
     val cameraPermissionLauncher =
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission(),
@@ -99,7 +107,16 @@ fun CaptureScreen(
             if (!spoken.isNullOrBlank()) viewModel.setAction(CaptureAction.DescriptionChanged(spoken))
         }
 
-    fun startVoice() = voiceLauncher.launch(buildVoiceIntent())
+    // Guard the speech recognizer: on devices without one (some ROMs, no Google app) launching
+    // ACTION_RECOGNIZE_SPEECH throws ActivityNotFoundException, which would crash the app.
+    fun startVoice() {
+        runCatching { voiceLauncher.launch(buildVoiceIntent()) }
+            .onFailure {
+                viewModel.setAction(
+                    CaptureAction.MediaError("Voice input isn't available on this device. Try typing instead."),
+                )
+            }
+    }
 
     fun takePhoto() {
         val granted =

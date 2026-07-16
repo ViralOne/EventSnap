@@ -69,7 +69,9 @@ class CalendarWriterImpl(
                         put(CalendarContract.Reminders.MINUTES, event.reminderMinutesBefore)
                         put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
                     }
-                context.contentResolver.insert(CalendarContract.Reminders.CONTENT_URI, reminderValues)
+                // Best-effort: the event itself already exists, so a reminder failure must not
+                // propagate and trigger a rollback of the successfully-created event.
+                runCatching { context.contentResolver.insert(CalendarContract.Reminders.CONTENT_URI, reminderValues) }
             }
             eventId
         }
@@ -149,14 +151,19 @@ class CalendarWriterImpl(
         return localDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
     }
 
-    /** RRULE (RFC 5545) for a [Recurrence], or null for a one-off event. */
+    /**
+     * RRULE (RFC 5545) for a [Recurrence], or null for a one-off event. Every rule is bounded with
+     * a COUNT so an extracted event never repeats forever — the AI can't know an end date, and an
+     * unbounded series is almost never what the user wants. The counts give roughly a year of
+     * occurrences per frequency, which the user can extend in their calendar app if needed.
+     */
     private fun rruleFor(recurrence: Recurrence): String? =
         when (recurrence) {
             Recurrence.NONE -> null
-            Recurrence.DAILY -> "FREQ=DAILY"
-            Recurrence.WEEKLY -> "FREQ=WEEKLY"
-            Recurrence.MONTHLY -> "FREQ=MONTHLY"
-            Recurrence.YEARLY -> "FREQ=YEARLY"
+            Recurrence.DAILY -> "FREQ=DAILY;COUNT=$DAILY_COUNT"
+            Recurrence.WEEKLY -> "FREQ=WEEKLY;COUNT=$WEEKLY_COUNT"
+            Recurrence.MONTHLY -> "FREQ=MONTHLY;COUNT=$MONTHLY_COUNT"
+            Recurrence.YEARLY -> "FREQ=YEARLY;COUNT=$YEARLY_COUNT"
         }
 
     /** ISO-8601 duration for a recurring event. All-day events use whole days (e.g. "P1D"). */
@@ -170,5 +177,13 @@ class CalendarWriterImpl(
         }
         val seconds = (durationMillis / 1000L).coerceAtLeast(1)
         return "PT${seconds}S"
+    }
+
+    private companion object {
+        // ~1 year of occurrences per frequency, so a recurring event is bounded but useful.
+        const val DAILY_COUNT = 365
+        const val WEEKLY_COUNT = 52
+        const val MONTHLY_COUNT = 12
+        const val YEARLY_COUNT = 5
     }
 }

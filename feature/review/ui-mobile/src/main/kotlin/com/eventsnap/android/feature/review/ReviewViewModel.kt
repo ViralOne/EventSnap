@@ -39,6 +39,7 @@ class ReviewViewModel(
                 }
             is ReviewAction.CalendarSelected -> setState { copy(selectedCalendarId = action.calendarId) }
             is ReviewAction.ErrorDismissed -> setState { copy(error = null) }
+            is ReviewAction.Dismiss -> setEffect(ReviewEffect.NavigateBackToCapture)
             is ReviewAction.Confirm -> confirm()
             is ReviewAction.Undo ->
                 viewModelScope.launch {

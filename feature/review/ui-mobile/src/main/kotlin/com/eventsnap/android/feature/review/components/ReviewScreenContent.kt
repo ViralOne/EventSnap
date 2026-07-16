@@ -86,6 +86,16 @@ fun ReviewScreenContent(
     Scaffold(
         modifier = modifier,
     ) { innerPadding ->
+        // No events to review — most often the capture batch was lost to process death (the app
+        // was killed in the background while the camera/another app was in front). Show an explicit
+        // recovery message instead of a blank screen with a dead "Add" button.
+        if (state.events.isEmpty()) {
+            EmptyReviewState(
+                modifier = Modifier.fillMaxSize().padding(innerPadding).padding(Spacing.md),
+                onBack = { onAction(ReviewAction.Dismiss) },
+            )
+            return@Scaffold
+        }
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(Spacing.md)) {
             Text("Review events", style = MaterialTheme.typography.titleLarge)
 
@@ -149,6 +159,36 @@ fun ReviewScreenContent(
                     }
                 Text(label)
             }
+        }
+    }
+}
+
+@Composable
+private fun EmptyReviewState(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            "Nothing to review",
+            style = MaterialTheme.typography.titleLarge,
+        )
+        Text(
+            "The captured events are no longer available — this can happen if the app was closed. " +
+                "Please capture the event again.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = Spacing.sm),
+        )
+        Button(
+            onClick = onBack,
+            modifier = Modifier.padding(top = Spacing.lg).testTag("review_empty_back"),
+        ) {
+            Text("Back to capture")
         }
     }
 }
