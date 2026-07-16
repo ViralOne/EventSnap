@@ -50,7 +50,7 @@ class ReviewViewModel(
     }
 
     /** Drops the event and its aligned selection flag; leaves the screen when nothing remains. */
-    private fun removeEvent(index: Int) {
+    private suspend fun removeEvent(index: Int) {
         setState {
             copy(
                 events = events.filterIndexed { i, _ -> i != index }.toImmutableList(),
