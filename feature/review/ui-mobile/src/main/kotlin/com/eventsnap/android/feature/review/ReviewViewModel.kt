@@ -22,17 +22,7 @@ class ReviewViewModel(
     override suspend fun onAction(action: ReviewAction) {
         when (action) {
             is ReviewAction.Load -> load()
-            is ReviewAction.RemoveEvent -> {
-                // Drop the event and its aligned selection flag together.
-                setState {
-                    copy(
-                        events = events.filterIndexed { i, _ -> i != action.index }.toImmutableList(),
-                        selected = selected.filterIndexed { i, _ -> i != action.index }.toImmutableList(),
-                    )
-                }
-                // Nothing left to review → there's no screen to show, so go back to Capture.
-                if (state.value.events.isEmpty()) setEffect(ReviewEffect.NavigateBackToCapture)
-            }
+            is ReviewAction.RemoveEvent -> removeEvent(action.index)
             is ReviewAction.SelectionToggled ->
                 setState {
                     copy(selected = selected.mapIndexed { i, s -> if (i == action.index) action.selected else s }.toImmutableList())
@@ -57,6 +47,18 @@ class ReviewViewModel(
             }
             else -> onFieldEdit(action)
         }
+    }
+
+    /** Drops the event and its aligned selection flag; leaves the screen when nothing remains. */
+    private fun removeEvent(index: Int) {
+        setState {
+            copy(
+                events = events.filterIndexed { i, _ -> i != index }.toImmutableList(),
+                selected = selected.filterIndexed { i, _ -> i != index }.toImmutableList(),
+            )
+        }
+        // Nothing left to review → there's no screen to show, so go back to Capture.
+        if (state.value.events.isEmpty()) setEffect(ReviewEffect.NavigateBackToCapture)
     }
 
     /** Debounced keyless place lookup for the location field, cancelling any prior in-flight query. */
