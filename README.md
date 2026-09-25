@@ -9,6 +9,8 @@ no ads, no paywall.
 1. **Capture** — type an event description, pick/snap a photo, or share text/an image into the app.
 2. **AI extraction** — the text/image is sent to [Groq](https://groq.com) (OpenAI-compatible API);
    a fast text model handles descriptions, a vision model reads photos. It returns structured events.
+   Both models are chosen from Groq's live model list at request time, so a model Groq retires
+   doesn't break the app — and you can pin a specific model per arm in **Settings**.
 3. **Review** — every extracted event is an editable card (title, time, location, reminder, target
    calendar). One capture can yield several events.
 4. **Confirm** — events are written directly into your Google/device calendar via Android's
@@ -95,5 +97,9 @@ This project ships two Claude Code skills under `.claude/skills/`:
 
 - Free Groq vision OCR is good but imperfect — the review screen is the safety net; you always
   edit before anything is written to your calendar.
-- The Groq model ids live in `core/data/.../groq/GroqModelCatalog.kt`; update them if Groq renames
-  its free models.
+- Model selection is resolved against Groq's live `GET /models` list by
+  `core/data/.../groq/GroqModelRegistry.kt`. `GroqModelCatalog.kt` only holds the preference order
+  and the offline fallback, so a retired model id degrades to the next candidate instead of an
+  HTTP 404. A capture that a model rejects is retried on the next candidate automatically.
+- Groq reports no modality flag, so vision capability is guessed from the model id — that guess only
+  sorts and labels the picker; "Automatic" is still the recommended setting.
