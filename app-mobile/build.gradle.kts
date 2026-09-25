@@ -11,8 +11,8 @@ android {
 
     defaultConfig {
         applicationId = "com.eventsnap.android"
-        versionCode = 10
-        versionName = "0.6.0"
+        versionCode = 11
+        versionName = "0.6.1"
     }
 
     // A stable release keystore, provided via env vars in CI (from encrypted GitHub Secrets — the
