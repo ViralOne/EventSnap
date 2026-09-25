@@ -19,6 +19,8 @@ private const val KEY_CALENDAR = "default_calendar_id"
 private const val KEY_REMINDER = "default_reminder_minutes"
 private const val KEY_THEME = "theme_preference"
 private const val KEY_DYNAMIC_COLOR = "dynamic_color"
+private const val KEY_TEXT_MODEL = "text_model"
+private const val KEY_VISION_MODEL = "vision_model"
 private const val DEFAULT_REMINDER_MINUTES = 30
 
 /**
@@ -70,9 +72,35 @@ class EncryptedSettingsStore(
     private val _dynamicColor = MutableStateFlow(prefs.getBoolean(KEY_DYNAMIC_COLOR, true))
     override val dynamicColor = _dynamicColor.asStateFlow()
 
+    // Null (the default) means automatic: GroqModelRegistry picks from Groq's live model list.
+    private val _textModel = MutableStateFlow(prefs.getString(KEY_TEXT_MODEL, null))
+    override val textModel = _textModel.asStateFlow()
+
+    private val _visionModel = MutableStateFlow(prefs.getString(KEY_VISION_MODEL, null))
+    override val visionModel = _visionModel.asStateFlow()
+
     override suspend fun setGroqApiKey(key: String) {
         prefs.edit().putString(KEY_GROQ, key).apply()
         _groqApiKey.value = key
+    }
+
+    override suspend fun setTextModel(modelId: String?) {
+        putModel(KEY_TEXT_MODEL, modelId, _textModel)
+    }
+
+    override suspend fun setVisionModel(modelId: String?) {
+        putModel(KEY_VISION_MODEL, modelId, _visionModel)
+    }
+
+    /** Stores a pinned model id, removing the key entirely for null/blank (back to automatic). */
+    private fun putModel(
+        key: String,
+        modelId: String?,
+        flow: MutableStateFlow<String?>,
+    ) {
+        val cleaned = modelId?.trim()?.takeIf { it.isNotEmpty() }
+        prefs.edit().apply { if (cleaned == null) remove(key) else putString(key, cleaned) }.apply()
+        flow.value = cleaned
     }
 
     override suspend fun setDefaultCalendarId(id: Long) {

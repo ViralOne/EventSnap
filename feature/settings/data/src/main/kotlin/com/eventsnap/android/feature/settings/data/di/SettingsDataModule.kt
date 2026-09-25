@@ -6,5 +6,7 @@ import org.koin.dsl.module
 
 val settingsDataModule =
     module {
-        single<SettingsRepository> { SettingsRepositoryImpl(settingsStore = get(), calendarWriter = get()) }
+        single<SettingsRepository> {
+            SettingsRepositoryImpl(settingsStore = get(), calendarWriter = get(), modelRegistry = get())
+        }
     }

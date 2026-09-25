@@ -74,6 +74,8 @@ fun SettingsScreenContent(
             Text("Save key")
         }
 
+        AiModelSection(state = state, onAction = onAction)
+
         Text("Default reminder", style = MaterialTheme.typography.titleMedium)
         REMINDER_OPTIONS.forEach { minutes ->
             Row(

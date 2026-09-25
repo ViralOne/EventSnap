@@ -6,9 +6,12 @@ import com.eventsnap.android.core.data.calendar.CalendarWriter
 import com.eventsnap.android.core.data.calendar.CalendarWriterImpl
 import com.eventsnap.android.core.data.env.EnvironmentConfig
 import com.eventsnap.android.core.data.groq.GroqApi
+import com.eventsnap.android.core.data.groq.GroqModelRegistry
+import com.eventsnap.android.core.data.groq.GroqModelRegistryImpl
 import com.eventsnap.android.core.data.handoff.ExtractedEventsHolder
 import com.eventsnap.android.core.data.history.EventSnapDatabase
 import com.eventsnap.android.core.data.network.EnvironmentBaseUrlInterceptor
+import com.eventsnap.android.core.data.network.GroqErrorInterceptor
 import com.eventsnap.android.core.data.places.DeviceLocationProvider
 import com.eventsnap.android.core.data.places.PhotonApi
 import com.eventsnap.android.core.data.places.PlaceSearchRepository
@@ -42,6 +45,8 @@ val coreDataModule =
                 .Builder()
                 .addInterceptor(get<EnvironmentBaseUrlInterceptor>())
                 .addInterceptor(logging)
+                // Last, so it sees the final response and can turn Groq's error JSON into a message.
+                .addInterceptor(GroqErrorInterceptor())
                 .build()
         }
 
@@ -62,6 +67,8 @@ val coreDataModule =
         }
 
         single<GroqApi> { get<Retrofit>().create(GroqApi::class.java) }
+
+        single<GroqModelRegistry> { GroqModelRegistryImpl(groqApi = get(), settingsStore = get()) }
 
         // Photon (keyless OpenStreetMap geocoder) gets its own client + Retrofit: it has a fixed
         // public host, so it must bypass the EnvironmentBaseUrlInterceptor that rewrites Groq's host.

@@ -2,6 +2,7 @@ package com.eventsnap.android.core.data.groq
 
 import com.squareup.moshi.JsonClass
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 
@@ -16,7 +17,32 @@ interface GroqApi {
         @Header("Authorization") authorization: String,
         @Body request: GroqRequest,
     ): GroqResponse
+
+    /** Live model list, so model ids never have to be hardcoded — see GroqModelRegistry. */
+    @GET("models")
+    suspend fun models(
+        @Header("Authorization") authorization: String,
+    ): GroqModelsResponse
 }
+
+@JsonClass(generateAdapter = true)
+data class GroqModelsResponse(
+    val data: List<GroqModelDto> = emptyList(),
+)
+
+/**
+ * One entry from `GET /models`. Groq reports no modality/vision flag, so capability has to be
+ * inferred from the id (see GroqModelCatalog.looksVisionCapable).
+ */
+@JsonClass(generateAdapter = true)
+data class GroqModelDto(
+    val id: String,
+    val active: Boolean = true,
+    @Suppress("ConstructorParameterNaming")
+    val owned_by: String? = null,
+    @Suppress("ConstructorParameterNaming")
+    val context_window: Int? = null,
+)
 
 @JsonClass(generateAdapter = true)
 data class GroqRequest(

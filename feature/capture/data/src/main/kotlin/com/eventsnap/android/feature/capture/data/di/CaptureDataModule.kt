@@ -6,5 +6,7 @@ import org.koin.dsl.module
 
 val captureDataModule =
     module {
-        single<CaptureRepository> { CaptureRepositoryImpl(groqApi = get(), settingsStore = get(), moshi = get()) }
+        single<CaptureRepository> {
+            CaptureRepositoryImpl(groqApi = get(), settingsStore = get(), modelRegistry = get(), moshi = get())
+        }
     }

@@ -14,7 +14,19 @@ interface SettingsStore {
     val themePreference: Flow<ThemePreference>
     val dynamicColor: Flow<Boolean>
 
+    /** Model pinned for typed descriptions; null means "let the app pick a live one". */
+    val textModel: Flow<String?>
+
+    /** Model pinned for photos/PDFs; null means "let the app pick a live one". */
+    val visionModel: Flow<String?>
+
     suspend fun setGroqApiKey(key: String)
+
+    /** Pass null to go back to automatic selection against Groq's live model list. */
+    suspend fun setTextModel(modelId: String?)
+
+    /** Pass null to go back to automatic selection against Groq's live model list. */
+    suspend fun setVisionModel(modelId: String?)
 
     suspend fun setDefaultCalendarId(id: Long)
 
