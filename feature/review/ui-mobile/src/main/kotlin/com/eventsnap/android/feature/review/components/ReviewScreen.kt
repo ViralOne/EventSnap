@@ -40,6 +40,7 @@ fun ReviewScreen(
             // Hand the batch to the app level, which pops back instantly and shows the "Added · Undo"
             // snackbar there — so this screen doesn't block for the snackbar's full duration.
             is ReviewEffect.ShowSaved -> onEventsAdded(effect.count, effect.batch)
+
             is ReviewEffect.NavigateBackToCapture -> onDone()
         }
     }

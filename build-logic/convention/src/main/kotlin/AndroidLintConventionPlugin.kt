@@ -8,7 +8,7 @@ class AndroidLintConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             when {
-                pluginManager.hasPlugin("com.android.application") ->
+                pluginManager.hasPlugin("com.android.application") -> {
                     extensions.configure<ApplicationExtension> {
                         lint {
                             abortOnError = true
@@ -16,7 +16,9 @@ class AndroidLintConventionPlugin : Plugin<Project> {
                             lintConfig = rootProject.file(".lint/config.xml")
                         }
                     }
-                pluginManager.hasPlugin("com.android.library") ->
+                }
+
+                pluginManager.hasPlugin("com.android.library") -> {
                     extensions.configure<LibraryExtension> {
                         lint {
                             abortOnError = true
@@ -24,6 +26,7 @@ class AndroidLintConventionPlugin : Plugin<Project> {
                             lintConfig = rootProject.file(".lint/config.xml")
                         }
                     }
+                }
             }
         }
     }

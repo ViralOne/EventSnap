@@ -14,7 +14,7 @@ class AndroidFlavorsConventionPlugin : Plugin<Project> {
             val prodUrl = stringProperty("eventsnap.prodApiBaseUrl", "https://api.groq.com/openai/v1/")
 
             when {
-                pluginManager.hasPlugin("com.android.application") ->
+                pluginManager.hasPlugin("com.android.application") -> {
                     extensions.configure<ApplicationExtension> {
                         buildFeatures { buildConfig = true }
                         flavorDimensions += "env"
@@ -34,7 +34,9 @@ class AndroidFlavorsConventionPlugin : Plugin<Project> {
                             }
                         }
                     }
-                pluginManager.hasPlugin("com.android.library") ->
+                }
+
+                pluginManager.hasPlugin("com.android.library") -> {
                     extensions.configure<LibraryExtension> {
                         buildFeatures { buildConfig = true }
                         flavorDimensions += "env"
@@ -52,12 +54,15 @@ class AndroidFlavorsConventionPlugin : Plugin<Project> {
                             }
                         }
                     }
-                else ->
+                }
+
+                else -> {
                     error(
                         "eventsnap.android.flavors must be applied AFTER eventsnap.android.application " +
                             "or eventsnap.android.library — apply it last in the plugins { } block of " +
                             "app-mobile or core/data only.",
                     )
+                }
             }
         }
     }

@@ -22,16 +22,34 @@ class CaptureViewModel(
 
     override suspend fun onAction(action: CaptureAction) {
         when (action) {
-            is CaptureAction.DescriptionChanged -> setState { copy(description = action.value) }
-            is CaptureAction.SubmitText -> extract(CaptureInput.Text(state.value.description))
+            is CaptureAction.DescriptionChanged -> {
+                setState { copy(description = action.value) }
+            }
+
+            is CaptureAction.SubmitText -> {
+                extract(CaptureInput.Text(state.value.description))
+            }
+
             is CaptureAction.SubmitSharedText -> {
                 setState { copy(description = action.text) }
                 extract(CaptureInput.Text(action.text))
             }
-            is CaptureAction.SubmitImage -> extract(action.input)
-            is CaptureAction.MediaError -> setState { copy(isProcessing = false, error = action.message) }
-            is CaptureAction.ErrorDismissed -> setState { copy(error = null) }
-            is CaptureAction.OpenApiKeySetup -> setEffect(CaptureEffect.NavigateToSettings)
+
+            is CaptureAction.SubmitImage -> {
+                extract(action.input)
+            }
+
+            is CaptureAction.MediaError -> {
+                setState { copy(isProcessing = false, error = action.message) }
+            }
+
+            is CaptureAction.ErrorDismissed -> {
+                setState { copy(error = null) }
+            }
+
+            is CaptureAction.OpenApiKeySetup -> {
+                setEffect(CaptureEffect.NavigateToSettings)
+            }
         }
     }
 

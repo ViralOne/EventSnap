@@ -21,31 +21,57 @@ class ReviewViewModel(
 
     override suspend fun onAction(action: ReviewAction) {
         when (action) {
-            is ReviewAction.Load -> load()
-            is ReviewAction.RemoveEvent -> removeEvent(action.index)
-            is ReviewAction.SelectionToggled ->
+            is ReviewAction.Load -> {
+                load()
+            }
+
+            is ReviewAction.RemoveEvent -> {
+                removeEvent(action.index)
+            }
+
+            is ReviewAction.SelectionToggled -> {
                 setState {
                     copy(selected = selected.mapIndexed { i, s -> if (i == action.index) action.selected else s }.toImmutableList())
                 }
-            is ReviewAction.CalendarSelected -> setState { copy(selectedCalendarId = action.calendarId) }
-            is ReviewAction.ErrorDismissed -> setState { copy(error = null) }
-            is ReviewAction.Dismiss -> setEffect(ReviewEffect.NavigateBackToCapture)
-            is ReviewAction.Confirm -> confirm()
-            is ReviewAction.Undo ->
+            }
+
+            is ReviewAction.CalendarSelected -> {
+                setState { copy(selectedCalendarId = action.calendarId) }
+            }
+
+            is ReviewAction.ErrorDismissed -> {
+                setState { copy(error = null) }
+            }
+
+            is ReviewAction.Dismiss -> {
+                setEffect(ReviewEffect.NavigateBackToCapture)
+            }
+
+            is ReviewAction.Confirm -> {
+                confirm()
+            }
+
+            is ReviewAction.Undo -> {
                 viewModelScope.launch {
                     runCatching { repository.undo(action.batch) }
                         .onFailure { throwable -> setState { copy(error = throwable.message ?: "Could not undo.") } }
                 }
+            }
+
             is ReviewAction.LocationSuggestionPicked -> {
                 placeSearchJob?.cancel()
                 mutateEvent(action.index) { it.copy(location = action.suggestion.storedValue) }
                 setState { copy(locationQueryIndex = null, locationSuggestions = persistentListOf()) }
             }
+
             is ReviewAction.LocationSearchDismissed -> {
                 placeSearchJob?.cancel()
                 setState { copy(locationQueryIndex = null, locationSuggestions = persistentListOf()) }
             }
-            else -> onFieldEdit(action)
+
+            else -> {
+                onFieldEdit(action)
+            }
         }
     }
 
@@ -82,29 +108,50 @@ class ReviewViewModel(
     /** Per-event field edits from the review cards; kept separate to keep [onAction] simple. */
     private fun onFieldEdit(action: ReviewAction) {
         when (action) {
-            is ReviewAction.TitleChanged -> mutateEvent(action.index) { it.copy(title = action.value) }
+            is ReviewAction.TitleChanged -> {
+                mutateEvent(action.index) { it.copy(title = action.value) }
+            }
+
             is ReviewAction.LocationChanged -> {
                 mutateEvent(action.index) { it.copy(location = action.value) }
                 searchPlaces(action.index, action.value)
             }
-            is ReviewAction.StartChanged ->
+
+            is ReviewAction.StartChanged -> {
                 mutateEvent(action.index) { event ->
                     // Keep the duration stable when the start moves; never let end precede start.
                     val duration = (event.endEpochMillis - event.startEpochMillis).coerceAtLeast(0)
                     event.copy(startEpochMillis = action.epochMillis, endEpochMillis = action.epochMillis + duration)
                 }
-            is ReviewAction.EndChanged ->
+            }
+
+            is ReviewAction.EndChanged -> {
                 mutateEvent(action.index) { event ->
                     event.copy(endEpochMillis = action.epochMillis.coerceAtLeast(event.startEpochMillis))
                 }
-            is ReviewAction.AllDayToggled -> mutateEvent(action.index) { it.copy(allDay = action.allDay) }
-            is ReviewAction.TaskToggled ->
+            }
+
+            is ReviewAction.AllDayToggled -> {
+                mutateEvent(action.index) { it.copy(allDay = action.allDay) }
+            }
+
+            is ReviewAction.TaskToggled -> {
                 // "Task" is just a classification (to-do vs event); it's independent of all-day, so
                 // toggling it never touches the time. The user controls all-day with its own switch.
                 mutateEvent(action.index) { it.copy(isTask = action.isTask) }
-            is ReviewAction.ReminderChanged -> mutateEvent(action.index) { it.copy(reminderMinutesBefore = action.minutesBefore) }
-            is ReviewAction.RecurrenceChanged -> mutateEvent(action.index) { it.copy(recurrence = action.recurrence) }
-            else -> Unit
+            }
+
+            is ReviewAction.ReminderChanged -> {
+                mutateEvent(action.index) { it.copy(reminderMinutesBefore = action.minutesBefore) }
+            }
+
+            is ReviewAction.RecurrenceChanged -> {
+                mutateEvent(action.index) { it.copy(recurrence = action.recurrence) }
+            }
+
+            else -> {
+                Unit
+            }
         }
     }
 
