@@ -12,6 +12,7 @@ import androidx.security.crypto.MasterKey
 import com.eventsnap.android.core.model.ThemePreference
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import timber.log.Timber
 
 private const val PREFS_NAME = "eventsnap_secure_settings"
 private const val KEY_GROQ = "groq_api_key"
@@ -31,21 +32,7 @@ private const val DEFAULT_REMINDER_MINUTES = 30
 class EncryptedSettingsStore(
     context: Context,
 ) : SettingsStore {
-    private val prefs: SharedPreferences =
-        run {
-            val masterKey =
-                MasterKey
-                    .Builder(context)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build()
-            EncryptedSharedPreferences.create(
-                context,
-                PREFS_NAME,
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-            )
-        }
+    private val prefs: SharedPreferences = openPrefs(context)
 
     private val _groqApiKey = MutableStateFlow(prefs.getString(KEY_GROQ, null))
     override val groqApiKey = _groqApiKey.asStateFlow()
@@ -122,4 +109,58 @@ class EncryptedSettingsStore(
         prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, enabled).apply()
         _dynamicColor.value = enabled
     }
+}
+
+private fun openPrefs(context: Context): SharedPreferences =
+    openEncryptedPrefs(
+        create = { createPrefs(context) },
+        discardUnreadable = { context.deleteSharedPreferences(PREFS_NAME) },
+    )
+
+/**
+ * Opens encrypted prefs, recovering from a file the device can no longer decrypt: on failure it
+ * discards the file and retries [create] once.
+ *
+ * The keystore MasterKey lives outside the app's data directory and does not travel with it, so the
+ * two can get out of sync — an uninstall/reinstall where auto-backup restores the encrypted file but
+ * not the key, a restore onto another device, a keystore reset. EncryptedSharedPreferences then
+ * throws AEADBadTagException on open, and because this store is built during Koin startup that took
+ * the whole app down before any UI existed: the app simply would not launch.
+ *
+ * The file holds only settings (an API key the user can re-paste, plus preferences), so starting
+ * from empty settings is strictly better than not starting. A second failure is real breakage and
+ * propagates.
+ *
+ * Catching Exception is deliberate: Tink surfaces an undecryptable keyset as a checked
+ * GeneralSecurityException/IOException in some paths and as an unchecked wrapper in others, and
+ * every one of them must degrade to empty settings rather than a crash-on-launch.
+ *
+ * Public rather than private so it can be tested without a device keystore.
+ */
+@Suppress("TooGenericExceptionCaught")
+fun openEncryptedPrefs(
+    create: () -> SharedPreferences,
+    discardUnreadable: () -> Unit,
+): SharedPreferences =
+    try {
+        create()
+    } catch (error: Exception) {
+        Timber.w(error, "Encrypted settings could not be decrypted — starting from empty settings")
+        discardUnreadable()
+        create()
+    }
+
+private fun createPrefs(context: Context): SharedPreferences {
+    val masterKey =
+        MasterKey
+            .Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+    return EncryptedSharedPreferences.create(
+        context,
+        PREFS_NAME,
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+    )
 }

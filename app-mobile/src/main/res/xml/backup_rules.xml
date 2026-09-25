@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Auto-backup (Android 11 and below, android:fullBackupContent).
+
+  The encrypted settings file is excluded because its MasterKey lives in the device keystore and is
+  NOT part of the backup. Restoring the file without the key leaves EncryptedSharedPreferences with
+  a blob it cannot decrypt (AEADBadTagException). EncryptedSettingsStore recovers from that now, but
+  the honest fix is not to ship a ciphertext whose key can never come back — the user re-pastes their
+  Groq API key instead, which is also the safer place for a secret to live.
+-->
+<full-backup-content>
+    <exclude
+        domain="sharedpref"
+        path="eventsnap_secure_settings.xml" />
+</full-backup-content>
